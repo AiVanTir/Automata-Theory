@@ -1,0 +1,53 @@
+%start MAP1::START
+%class SmcRecog
+%header SmcRecog.hpp
+
+%map MAP1
+%%
+START {
+    INT    TYPE {}
+    SHORT  TYPE {}
+    LONG   TYPE {}
+}
+
+TYPE {
+    IDENT  SIZE {}
+}
+
+SIZE {
+    LBRACKET SIZE_NUM {}
+}
+
+SIZE_NUM {
+    NUMBER SIZE_END {}
+}
+
+SIZE_END {
+    RBRACKET EQUAL {}
+}
+
+EQUAL {
+    EQUAL_SIGN BRACE_OPEN {}
+}
+
+BRACE_OPEN {
+    OPEN_BRACE FIRST_NUM {}
+}
+
+FIRST_NUM {
+    NUMBER NEXT_NUM {}
+}
+
+NEXT_NUM {
+    COMMA NEXT_NUM {}
+    NUMBER NEXT_NUM {}
+    CLOSE_BRACE CHECK {}
+}
+
+CHECK
+{}
+
+ERROR
+{}
+
+%%
