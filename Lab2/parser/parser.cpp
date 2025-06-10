@@ -10,6 +10,8 @@ Node* Parser::ParseGroupRef() {
     long long result = 0;
     bool isNumber = false;
     int number;
+
+    /* пытаемся распарсить наибольшее число */
     while (position < pattern.size() && isdigit(pattern[position])) {
         isNumber = true;
         number = pattern[position] - '0';
@@ -31,6 +33,7 @@ Node* Parser::ParseGroupRef() {
 Node* Parser::ParseSymbol() {
     int oldPosition = position;
     char symbol;
+
     if (MatchAndConsume('#')) {
         if (!GetSymbol(&symbol)) {
             position = oldPosition;
@@ -105,6 +108,7 @@ Node* Parser::ParseGroup() {
             return nullptr;
         }
         groupNumber = string[i] - '0';
+
         if (result > (INT_MAX - groupNumber) / 10) {
             position = oldPosition;
             return nullptr;
@@ -160,6 +164,7 @@ Node* Parser::ParseRepeat() {
         }
         if (MatchAndConsume('{')) {
             std::string string = ParseUntilSymbol(',');
+
             if (string.size() == 0) {
                 position = oldPosition;
                 delete nodeToReturn;
@@ -171,7 +176,7 @@ Node* Parser::ParseRepeat() {
                 return nullptr;
             }
             int lowerBound, upperBound;
-            long long result;
+            long long result = 0;
 
             for (int i = 0; i < string.size(); ++i) {
                 if (!isdigit(string[i])) {
@@ -180,6 +185,7 @@ Node* Parser::ParseRepeat() {
                     return nullptr;
                 }
                 lowerBound = string[i] - '0';
+
                 if (result > (INT_MAX - lowerBound) / 10) {
                     result = INT_MAX;
                     continue;
@@ -187,6 +193,8 @@ Node* Parser::ParseRepeat() {
                 result = result * 10 + lowerBound;
             }
             lowerBound = static_cast<int>(result);
+            result = 0;
+
             string = ParseUntilSymbol('}');
             
             if (!MatchAndConsume('}')) {
@@ -204,11 +212,19 @@ Node* Parser::ParseRepeat() {
                     return nullptr;
                 }
                 upperBound = string[i] - '0';
+
                 if (result > (INT_MAX - upperBound) / 10) {
                     result = INT_MAX;
                     continue;
                 }
                 result = result * 10 + upperBound;
+            }
+            upperBound = static_cast<int>(result);
+
+            if (lowerBound > upperBound) {
+                position = oldPosition;
+                delete nodeToReturn;
+                return nullptr;
             }
             std::pair<int, int> range = {lowerBound, upperBound};
             nodeToReturn = new Node(NodeType::REPEAT, range, newNode);
@@ -233,6 +249,7 @@ Node* Parser::ParseConcat() {
     for (;;) {
         if (Match('|') || position == pattern.size())
             break;
+
         if (MatchAndConsume('.')) {
             nextNode = ParseRepeat();
 

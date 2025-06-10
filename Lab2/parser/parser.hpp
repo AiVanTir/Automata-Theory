@@ -1,9 +1,12 @@
 #pragma once
 
+#include <string>
 #include "ast.hpp"
+
 class Parser {
     private:
         std::string pattern;
+
         bool GetSymbol(char* symbol) {
             if (position == pattern.length())
                 return false;

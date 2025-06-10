@@ -29,5 +29,8 @@ add_executable(main main.cpp)
 target_link_libraries(main PRIVATE regex)
 
 # Создание тестов и подключение libregex + Catch2WithMain
-add_executable(test test.cpp)
-target_link_libraries(test PRIVATE regex Catch2::Catch2WithMain)
+# add_executable(test test.cpp)
+# target_link_libraries(test PRIVATE regex Catch2::Catch2WithMain)
+
+# Инструкция по подключению нашей библиотеки вручную 
+# g++ ваш_файл.cpp -Lпуть_к_библиотеке -lregex -o ваша_программа

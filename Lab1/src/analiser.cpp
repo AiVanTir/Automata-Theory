@@ -9,6 +9,7 @@
 #include <cctype>
 #include <numeric>
 #include <cmath>
+#include <iomanip>
 #include "DifRecog/IMyRecognizer.hpp"
 #include "DifRecog/RegexRecog.hpp"
 #include "DifRecog/SmcRecog.hpp"
@@ -34,19 +35,13 @@ public:
         std::string result = types[type_dist(gen)] + " ";
 
         // Имя массива
-        int name_len = std::min(16, static_cast<int>(length / 4));
-        name_len = std::max(1, name_len);
-        result += "a";
-        for (int i = 1; i < name_len; ++i) {
-            result += alphanum[char_dist(gen)];
-        }
+        result += "Name";
 
         // Количество элементов
-        int num_elements = num_dist(gen);
-        result += "[" + std::to_string(num_elements) + "]={";
+        result += "[" + std::to_string(length) + "]={";
 
         // Список инициализации
-        for (int i = 0; i < num_elements; ++i) {
+        for (int i = 0; i < length; ++i) {
             if (i != 0) result += ",";
             if (neg_dist(gen)) {
                 result += "-" + std::to_string(val_dist(gen));
@@ -56,11 +51,6 @@ public:
         }
 
         result += "}";
-
-        // Дополнение до нужной длины
-        while (result.length() < length) {
-            result += " ";
-        }
 
         return result;
     }
@@ -81,155 +71,60 @@ public:
     }
 };
 
-// Точный таймер с наносекундным разрешением
-class PreciseTimer {
-    using Clock = std::chrono::high_resolution_clock;
-    using TimePoint = std::chrono::time_point<Clock>;
-    using Nanoseconds = std::chrono::nanoseconds;
-
-public:
-    void start() { start_time = Clock::now(); }
-    void stop() { end_time = Clock::now(); }
-    double elapsed() const {
-        return std::chrono::duration_cast<Nanoseconds>(end_time - start_time).count() / 1e6;
-    }
-
-private:
-    TimePoint start_time, end_time;
-};
-
-// Функция для прогрева кэша и стабилизации измерений
-template<typename Func>
-void warmup(Func&& func, const std::string& input,
-            std::vector<std::string>& names, std::vector<std::string>& freaks) {
-    for (int i = 0; i < 100; ++i) {
-        func(input, names, freaks);
-        names.clear();
-        freaks.clear();
-    }
-}
-
-struct TimingResult {
-    double min_time;
-    double avg_time;
-    double max_time;
-    double std_dev;
-};
-
-// Измерение времени с высокой точностью
-template<typename Func>
-TimingResult precise_measure(Func&& func, const std::string& input,
-                             std::vector<std::string>& names, std::vector<std::string>& freaks,
-                             int iterations = 100) {
-    std::vector<double> timings;
-    timings.reserve(iterations);
-
-    PreciseTimer timer;
-
-    // Прогрев и стабилизация
-    warmup(func, input, names, freaks);
-
-    // Основные измерения
-    for (int i = 0; i < iterations; ++i) {
-        names.clear();
-        freaks.clear();
-
-        timer.start();
-        func(input, names, freaks);
-        timer.stop();
-
-        timings.push_back(timer.elapsed());
-    }
-
-    // Статистическая обработка
-    TimingResult result;
-    result.min_time = *std::min_element(timings.begin(), timings.end());
-    result.max_time = *std::max_element(timings.begin(), timings.end());
-    result.avg_time = std::accumulate(timings.begin(), timings.end(), 0.0) / iterations;
-
-    // Стандартное отклонение
-    double sq_sum = std::inner_product(timings.begin(), timings.end(), timings.begin(), 0.0);
-    result.std_dev = std::sqrt(sq_sum / iterations - result.avg_time * result.avg_time);
-
-    return result;
-}
-
-void measurePerformance(const std::vector<std::unique_ptr<IMyRecognizer>>& recognizers,
-                        const std::vector<std::string>& testStrings,
-                        const std::string& outputFilename) {
-    std::ofstream outFile(outputFilename);
-    if (!outFile) {
-        std::cerr << "Failed to open output file: " << outputFilename << std::endl;
+void BenchmarkRecognizers(const std::string& outputFile) {
+    std::ofstream out(outputFile);
+    if (!out.is_open()) {
+        std::cerr << "Не удалось открыть файл для записи\n";
         return;
     }
 
-    // Заголовок CSV с расширенной статистикой
-    outFile << "StringLength,"
-            << "SmcRecogMin,SmcRecogAvg,SmcRecogMax,SmcRecogStdDev,"
-            << "FlexMin,FlexAvg,FlexMax,FlexStdDev,"
-            << "RegexMin,RegexAvg,RegexMax,RegexStdDev\n";
+    // Шапка таблицы
+    out << "StringLength SmcRecog(ms) FlexRecognizer(ms) RegexRecognizer(ms)\n";
 
-    std::vector<std::string> dummyNames;
-    std::vector<std::string> dummyFreaks;
+    // Длины строк от 2^7 до 2^20
+    for (size_t len = 64; len <= 4096; len += 100) { // 2^7 = 128 ... 2^14 = 16384
+        size_t length = len;
 
-    for (const auto& testStr : testStrings) {
-        outFile << testStr.length();
+        std::vector<std::unique_ptr<IMyRecognizer>> recognizers;
+        recognizers.emplace_back(std::make_unique<SmcRecog>());
+        recognizers.emplace_back(std::make_unique<FlexRecognizer>());
+        recognizers.emplace_back(std::make_unique<RegexRecognizer>());
 
-        for (const auto& recognizer : recognizers) {
-            auto result = precise_measure(
-                    [&](const std::string& s, std::vector<std::string>& n, std::vector<std::string>& f) {
-                        return recognizer->CheckString(s, n, f);
-                    },
-                    testStr, dummyNames, dummyFreaks, 1000
-            );
+        std::vector<double> avgTimes(3, 0.0); // среднее время для каждого распознавателя
 
-            outFile << "," << result.min_time
-                    << "," << result.avg_time
-                    << "," << result.max_time
-                    << "," << result.std_dev;
+        for (int r = 0; r < 3; ++r) {
+            double totalTime = 0.0;
 
-            dummyNames.clear();
-            dummyFreaks.clear();
+            for (int i = 0; i < 10; ++i) {
+                std::string testStr = TestStringGenerator::generateValidString(length);
+                std::vector<std::string> dummyAllNames, dummyFreaks;
+
+                auto start = std::chrono::high_resolution_clock::now();
+                recognizers[r]->CheckString(testStr, dummyAllNames, dummyFreaks);
+                auto end = std::chrono::high_resolution_clock::now();
+
+                std::chrono::duration<double, std::milli> duration = end - start;
+                totalTime += duration.count();
+            }
+
+            avgTimes[r] = totalTime / 10.0;
         }
 
-        outFile << "\n";
+        // Запись строки в файл
+        out << length * 5  +  13 << " "
+            << std::fixed << std::setprecision(3)
+            << avgTimes[0] << " "
+            << avgTimes[1] << " "
+            << avgTimes[2] << "\n";
+
+        std::cout << "Обработано: длина " << length << " символов\n";
     }
 
-    outFile.close();
+    out.close();
+    std::cout << "Результаты сохранены в файл: " << outputFile << "\n";
 }
 
 int main() {
-    // Создаем распознаватели
-    std::vector<std::unique_ptr<IMyRecognizer>> recognizers;
-    recognizers.push_back(std::make_unique<SmcRecog>());
-    recognizers.push_back(std::make_unique<FlexRecognizer>());
-    recognizers.push_back(std::make_unique<RegexRecognizer>());
-
-    // Генерируем тестовые строки (степени двойки от 2^4 до 2^12)
-    std::vector<std::string> validStrings;
-    std::vector<std::string> invalidStrings;
-
-    for (int exp = 4; exp <= 12; ++exp) {
-        size_t length = 1 << exp; // 2^exp
-
-        // Генерируем 10 валидных строк этой длины
-        for (int i = 0; i < 10; ++i) {
-            validStrings.push_back(TestStringGenerator::generateValidString(length));
-        }
-
-        // Генерируем 10 невалидных строк этой длины
-        for (int i = 0; i < 10; ++i) {
-            invalidStrings.push_back(TestStringGenerator::generateInvalidString(length));
-        }
-    }
-
-    // Измеряем производительность для валидных строк
-    measurePerformance(recognizers, validStrings, "valid_strings_performance.csv");
-
-    // Измеряем производительность для невалидных строк
-    measurePerformance(recognizers, invalidStrings, "invalid_strings_performance.csv");
-
-    std::cout << "Performance measurement completed. Results saved to CSV files." << std::endl;
-
+    BenchmarkRecognizers("benchmark_results.txt");
     return 0;
 }

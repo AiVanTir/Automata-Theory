@@ -1,11 +1,13 @@
 #include "automaton.hpp"
 
-
+/* Инициализируем все НКА */
 void NnfaInit(std::vector<Automaton*>& nnfa, Node* node, int number) {
+    /* SYMBOL */
     if (node->type == NodeType::SYMBOL) {
         Automaton* nfa = nnfa.at(number);
         nfa->stateCount++;
 
+        /* если предыдущей операцией было повторение с нижней границей = 0 */
         if (nfa->stateCount == nfa->transitions.size()) {
             AdjacencyList* transition = nfa->transitions.back();
             transition->next = new AdjacencyList(std::get<char>(node->data), nfa->stateCount);
@@ -15,6 +17,7 @@ void NnfaInit(std::vector<Automaton*>& nnfa, Node* node, int number) {
         nfa->transitions.push_back(transition);
         return;
     }
+    /* CONCAT */
     if (node->type == NodeType::CONCAT) {
         Automaton* nfa = nnfa.at(number);
         int tmpStateCount;
@@ -32,6 +35,7 @@ void NnfaInit(std::vector<Automaton*>& nnfa, Node* node, int number) {
         nfa->finalStates.insert(nfa->stateCount);
         return;
     }
+    /* OR */
     if (node->type == NodeType::OR) {
         Automaton* nfa = nnfa.at(number);
         std::vector<int> startStateCounts;
@@ -41,6 +45,7 @@ void NnfaInit(std::vector<Automaton*>& nnfa, Node* node, int number) {
         AdjacencyList* startTransition;
         nfa->finalStates.erase(nfa->stateCount);
 
+        /* если предыдущей операцией было повторение с нижней границей = 0 */
         if (nfa->stateCount != nfa->transitions.size())
             isStartTransition = true; 
         
@@ -92,55 +97,32 @@ void NnfaInit(std::vector<Automaton*>& nnfa, Node* node, int number) {
         }
         return;     
     }
-    /*if (node->type == NodeType::REPEAT) {
+    /* REPEAT */
+    if (node->type == NodeType::REPEAT) {
         Automaton* nfa = nnfa.at(number);
-        std::vector<int> range = std::get<std::vector<int>>(node->data);
+        std::pair<int, int> range = std::get<std::pair<int, int>>(node->data);
 
-        // '{}' 
-        if (range.at(0) == range.at(1)) {
-            Automaton* nfa = nnfa.at(number);
-
-            for (int i = 0; i < range.at(0); ++i) {
-                nfa->finalStates.erase(nfa->stateCount);
-                NnfaInit(nnfa, node->childrens.at(0), number);
-            }
-            nfa->finalStates.insert(nfa->stateCount);
+        /* повторение 0 раз */
+        if (range.first == 0 && range.second == 0) {
+            nfa->stateCount++;
+            AdjacencyList* transition = new AdjacencyList('\0', nfa->stateCount);
+            nfa->transitions.push_back(transition); 
+            return;    
         }
-        // '?'
-        else if (range.at(1) == 1) {
+        /* нижняя граница */
+        for (int i = 0; i < range.first; ++i) {
+            nfa->finalStates.erase(nfa->stateCount);
+            NnfaInit(nnfa, node->childrens.at(0), number);
+        }
+        /* верхняя граница (бесконечность) */
+        if (range.second == INT_MAX) {
             int tmpStateCount = nfa->stateCount;
             NnfaInit(nnfa, node->childrens.at(0), number);
-            AdjacencyList* startTransition = nfa->transitions.at(tmpStateCount);
-            AdjacencyList* tmpStartTransition;
-            nfa->finalStates.insert(tmpStateCount);
-
-            do {
-                tmpStartTransition = startTransition;
-
-                if (std::holds_alternative<std::pair<char, int>>(startTransition->transition)) {
-                    std::pair<char, int> transition = std::get<std::pair<char, int>>(startTransition->transition) ;
-                
-                    if (transition.first == '\0' && transition.second == nfa->stateCount) {
-                        return;
-                    }
-                }
-                startTransition = startTransition->next;    
-            } while (startTransition != nullptr);
-
-            tmpStartTransition->next = new AdjacencyList('\0', nfa->stateCount);
-        }
-        // '...'
-        else {
-            int tmpStateCount = nfa->stateCount;
-            NnfaInit(nnfa, node->childrens.at(0), number);
-            AdjacencyList* startTransition = nfa->transitions.at(tmpStateCount);
-            AdjacencyList* tmpStartTransition;
             bool isStartTransition = false;
-            nfa->finalStates.insert(tmpStateCount);
 
-            do {
-                tmpStartTransition = startTransition;
+            AdjacencyList* startTransition = nfa->transitions.at(tmpStateCount);
 
+            while (startTransition->next) {
                 if (std::holds_alternative<std::pair<char, int>>(startTransition->transition)) {
                     std::pair<char, int> transition = std::get<std::pair<char, int>>(startTransition->transition) ;
                 
@@ -150,26 +132,44 @@ void NnfaInit(std::vector<Automaton*>& nnfa, Node* node, int number) {
                     }
                 }
                 startTransition = startTransition->next;    
-            } while (startTransition != nullptr);
-
+            }
             if (!isStartTransition) 
-                tmpStartTransition->next = new AdjacencyList('\0', nfa->stateCount);
+                startTransition->next = new AdjacencyList('\0', nfa->stateCount);
 
-            if (nfa->stateCount != nfa->transitions.size()) 
-                return;
-
-            else {
+            if (nfa->stateCount == nfa->transitions.size()) {
                 AdjacencyList* endTransition = new AdjacencyList('\0', tmpStateCount);
                 nfa->transitions.push_back(endTransition);
             }
         }
-    }*/
+        /* верхняя граница (конечное значение) */
+        else {
+            std::set<int> tmpStateCounts;
+
+            for (int i = range.first; i < range.second; ++i) {
+                tmpStateCounts.insert(nfa->stateCount);
+                nfa->finalStates.erase(nfa->stateCount);
+                NnfaInit(nnfa, node->childrens.at(0), number);
+            }
+            for (int state : tmpStateCounts) {
+                AdjacencyList* newTransition = new AdjacencyList('\0', nfa->stateCount);
+                AdjacencyList* transition = nfa->transitions.at(state);
+                
+                while (transition->next) 
+                    transition = transition->next;
+
+                transition->next = newTransition;
+            } 
+        }
+        std::cout << nfa->stateCount << std::endl;
+        return;
+    }
     /* GROUP */
     if (node->type == NodeType::GROUP) {
         Automaton* nfa = nnfa.at(number);
         nfa->stateCount++;
         nfa->finalStates.insert(nfa->stateCount);
 
+        /* если предыдущей операцией не было повторение с нижней границей = 0 */
         if (nfa->stateCount != nfa->transitions.size()) {
             AdjacencyList* transition = new AdjacencyList(std::get<int>(node->data), nfa->stateCount);
             nfa->transitions.push_back(transition); 
@@ -177,6 +177,7 @@ void NnfaInit(std::vector<Automaton*>& nnfa, Node* node, int number) {
         else 
             nfa->transitions.back()->next = new AdjacencyList(std::get<int>(node->data), nfa->stateCount);
 
+        /* если предыдущей операцией было обязательное повторение более 1 раза */
         for (Automaton* tmpNfa: nnfa) {
             if (std::get<int>(node->data) == tmpNfa->number)
                 return;
@@ -186,6 +187,22 @@ void NnfaInit(std::vector<Automaton*>& nnfa, Node* node, int number) {
         NnfaInit(nnfa, node->childrens.at(0), (nnfa.size() - 1));
         return;
     }
+    /* GROUP_REF */
+    if (node->type == NodeType::GROUP_REF) {
+        Automaton* nfa = nnfa.at(number);
+        nfa->stateCount++;
+        nfa->finalStates.insert(nfa->stateCount);
+
+        /* если предыдущей операцией не было повторение с нижней границей = 0 */
+        if (nfa->stateCount != nfa->transitions.size()) {
+            AdjacencyList* transition = new AdjacencyList(-std::get<int>(node->data), nfa->stateCount);
+            nfa->transitions.push_back(transition); 
+        }
+        else 
+            nfa->transitions.back()->next = new AdjacencyList(-std::get<int>(node->data), nfa->stateCount);
+
+        return;
+    }
 }
 
 void NnfaPrepare(std::vector<Automaton*>& nnfa) {
@@ -193,49 +210,7 @@ void NnfaPrepare(std::vector<Automaton*>& nnfa) {
         nfa->finalStates.insert(nfa->stateCount);
 }
 
-void PrintNnfa(const std::vector<Automaton*>& nnfa) {
-    int counter;
-
-    for (Automaton* nfa: nnfa) {
-        counter = 0;
-        std::cout << std::endl;
-
-        if (nfa->number == -1) 
-            std::cout << "Main automata" << std::endl;
-
-        else 
-            std::cout << "\"" << nfa->number << "\"" << " automata" << std::endl;    
-
-        for (AdjacencyList* transition: nfa->transitions) {
-            while (transition != nullptr) {
-                if (std::holds_alternative<std::pair<char, int>>(transition->transition)) {
-                    std::cout << counter << " -> " << std::get<std::pair<char, int>>(transition->transition).second;
-                    
-                    if (std::get<std::pair<char, int>>(transition->transition).first != '\0')
-                        std::cout << " '" << std::get<std::pair<char, int>>(transition->transition).first << "'" << std::endl;
-                    
-                    else 
-                        std::cout << " epsilon" << std::endl;
-                }
-                else {
-                    std::cout << counter << " -> " << std::get<std::pair<int, int>>(transition->transition).second;
-                    std::cout << " \"" << std::get<std::pair<int, int>>(transition->transition).first << "\"" << std::endl;    
-                }
-                transition = transition->next;
-            }
-            counter++;
-        }
-        std::cout << "Final states:";
-
-        for (int finalState: nfa->finalStates)
-            std::cout << " " << finalState;
-
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-}
-
-/*std::set<int> epsilon_closure(const Automaton& nfa, int state) {
+std::set<int> epsilonClosure(const Automaton& nfa, int state) {
     std::set<int> closure = {state};
     std::queue<int> queue;
     queue.push(state);
@@ -248,7 +223,7 @@ void PrintNnfa(const std::vector<Automaton*>& nnfa) {
             break;
         AdjacencyList* transition = nfa.transitions.at(current);
 
-        while (transition != nullptr) {
+        while (transition) {
             if (std::holds_alternative<std::pair<char, int>>(transition->transition)) {
                 std::pair pair = std::get<std::pair<char, int>>(transition->transition);
                 
@@ -263,84 +238,86 @@ void PrintNnfa(const std::vector<Automaton*>& nnfa) {
     return closure;
 }
 
-std::vector<Dfa*> nfa_to_dfa(std::vector<Automaton*>& nnfa) {
-    using KeyType = std::variant<char, std::string>;
+std::vector<Automaton*> NnfaToNdfa(std::vector<Automaton*>& nnfa) {
+    using KeyType = std::variant<char, int>;
 
-    std::vector<Dfa*> ndfa;
-    std::set<int> initial_state; 
+    std::vector<Automaton*> ndfa;
+    std::set<int> initialState; 
 
     for (Automaton* nfa: nnfa) {
-        std::queue<std::set<int>> unmarked_states;
-        std::map<std::set<int>, int> dfa_states;
-        initial_state = epsilon_closure(*nfa, 0);
-        unmarked_states.push(initial_state);
-        Dfa* dfa;
+        std::queue<std::set<int>> unmarkedStates;
+        std::map<std::set<int>, int> dfaStates;
+        initialState = epsilonClosure(*nfa, 0);
+        unmarkedStates.push(initialState);
+        Automaton* dfa;
         
-        if (nfa->name == "")
-            dfa = new Dfa;
+        if (nfa->number == -1)
+            dfa = new Automaton;
         else
-            dfa = new Dfa(nfa->name);
+            dfa = new Automaton(nfa->number);
+
         ndfa.push_back(dfa);
-        dfa_states[initial_state] = 0;
+        dfaStates[initialState] = 0;
         dfa->stateCount = 1;
 
-        for (int state : initial_state) {
+        for (int state : initialState) {
             if (nfa->finalStates.find(state) != nfa->finalStates.end())
                 dfa->finalStates.insert(0);
         }
-        while (!unmarked_states.empty()) {
-            std::set<int> current_state = unmarked_states.front();
-            unmarked_states.pop();
+        while (!unmarkedStates.empty()) {
+            std::set<int> currentState = unmarkedStates.front();
+            unmarkedStates.pop();
 
             std::map<KeyType, std::set<int>> moves;
 
-            for (int state : current_state) {
+            for (int state : currentState) {
                 if (state >= nfa->transitions.size()) 
                     continue;
+
                 AdjacencyList* transition = nfa->transitions.at(state);
 
-                while (transition != nullptr) {
+                while (transition) {
                     if (std::holds_alternative<std::pair<char, int>>(transition->transition)) {
                         std::pair pair = std::get<std::pair<char, int>>(transition->transition);
                     
                         if (pair.first != '\0') {
-                            std::set<int> next_state = epsilon_closure(*nfa, pair.second);
-                            moves[pair.first].insert(next_state.begin(), next_state.end());
+                            std::set<int> nextState = epsilonClosure(*nfa, pair.second);
+                            moves[pair.first].insert(nextState.begin(), nextState.end());
                         }
                     }
                     else {
-                        std::pair pair = std::get<std::pair<std::string, int>>(transition->transition);
-                        std::set<int> next_state = epsilon_closure(*nfa, pair.second);
-                        moves[pair.first].insert(next_state.begin(), next_state.end());
+                        std::pair pair = std::get<std::pair<int, int>>(transition->transition);
+                        std::set<int> nextState = epsilonClosure(*nfa, pair.second);
+                        moves[pair.first].insert(nextState.begin(), nextState.end());
                     }
                     transition = transition->next;
                 }
             }
             for (const auto& move : moves) {
-                if (dfa_states.find(move.second) == dfa_states.end()) {
-                    dfa_states[move.second] = dfa->stateCount;
+                if (dfaStates.find(move.second) == dfaStates.end()) {
+                    dfaStates[move.second] = dfa->stateCount;
                     dfa->stateCount++;
-                    unmarked_states.push(move.second);
+                    unmarkedStates.push(move.second);
                 }
-                int from_state = dfa_states[current_state];
-                int to_state = dfa_states[move.second];
+                int fromState = dfaStates[currentState];
+                int toState = dfaStates[move.second];
 
-                if (from_state >= dfa->transitions.size()) {
-                    dfa->transitions.resize(from_state + 1, nullptr);
-                }
-                AdjacencyList* new_transition;
+                if (fromState >= dfa->transitions.size())
+                    dfa->transitions.resize(fromState + 1, nullptr);
+
+                AdjacencyList* newTransition;
 
                 if (std::holds_alternative<char>(move.first))
-                    new_transition = new AdjacencyList(std::get<char>(move.first), to_state);
+                    newTransition = new AdjacencyList(std::get<char>(move.first), toState);
                 else
-                    new_transition = new AdjacencyList(std::get<std::string>(move.first), to_state);
+                    newTransition = new AdjacencyList(std::get<int>(move.first), toState);
 
-                new_transition->next = dfa->transitions[from_state];
-                dfa->transitions[from_state] = new_transition;
+                newTransition->next = dfa->transitions[fromState];
+                dfa->transitions[fromState] = newTransition;
 
                 for (int state: move.second) {
                     if (nfa->finalStates.find(state) != nfa->finalStates.end())
-                        dfa->finalStates.insert(to_state);
+                        dfa->finalStates.insert(toState);
                 }
             }
         }
@@ -348,27 +325,284 @@ std::vector<Dfa*> nfa_to_dfa(std::vector<Automaton*>& nnfa) {
     return ndfa;
 }
 
-void print_ndfa(const std::vector<Dfa*>& ndfa) {
+int getTransition(const Automaton& dfa, int state, std::variant<int, char> symbol) {
+    if (state >= dfa.transitions.size())
+        return -1;
+
+    AdjacencyList* currentTransition = dfa.transitions.at(state);
+
+    while (currentTransition) {
+        if (std::holds_alternative<std::pair<char, int>>(currentTransition->transition)) {
+            std::pair pair = std::get<std::pair<char, int>>(currentTransition->transition);
+           
+            if (std::holds_alternative<char>(symbol)) 
+                if (pair.first == std::get<char>(symbol))
+                    return pair.second;
+        }
+        else { 
+            std::pair pair = std::get<std::pair<int, int>>(currentTransition->transition);
+           
+            if (std::holds_alternative<int>(symbol))
+                if (pair.first == std::get<int>(symbol))
+                    return pair.second;
+        }
+        currentTransition = currentTransition->next;
+    }
+    return -1;             
+}
+
+
+std::vector<Automaton*> MinimizeNdfa(std::vector<Automaton*>& ndfa) {
+    std::vector<Automaton*> minNdfa;
+
+    for (const Automaton* dfa: ndfa) {
+        std::unordered_set<std::variant<int, char>> alphabet;
+        std::vector<std::set<int>> partition;
+
+        for (AdjacencyList* currentTransition: dfa->transitions) {
+            while (currentTransition) {
+                if (std::holds_alternative<std::pair<char, int>>(currentTransition->transition)) 
+                    alphabet.insert(std::get<std::pair<char, int>>(currentTransition->transition).first);
+                else
+                    alphabet.insert(std::get<std::pair<int, int>>(currentTransition->transition).first);
+
+                currentTransition = currentTransition->next;
+            }
+        }
+        std::set<int> accepting, nonAccepting;
+
+        for (int i = 0; i < dfa->stateCount; ++i) {
+            if (dfa->finalStates.count(i))
+                accepting.insert(i);
+            else 
+                nonAccepting.insert(i);
+        }
+        if (!nonAccepting.empty()) partition.push_back(nonAccepting);
+        if (!accepting.empty()) partition.push_back(accepting);
+        bool isSplited = false;
+        
+        for (;;) { 
+            for (int i = 0; i < partition.size(); ++i) {
+                std::set<int> groupStates = partition.at(i);
+
+                for (std::variant<int, char> symbol: alphabet) { 
+                    for (int currentState: groupStates) {
+                        int nextState = getTransition(*dfa, currentState, symbol);
+
+                        if (nextState != -1) {
+                            int nextSet;
+
+                            for (nextSet = 0; nextSet < partition.size(); ++nextSet) {
+                                if (partition.at(nextSet).count(nextState) > 0) 
+                                    break;
+                            }
+                            std::set<int> groupStatesTmp;
+                            groupStatesTmp.insert(currentState);
+
+                            for (int stateTmp: groupStates) {
+                                int nextStateTmp = getTransition(*dfa, stateTmp, symbol);
+
+                                if (nextStateTmp != -1) {
+                                    int nextSetTmp;
+
+                                    for (nextSetTmp = 0; nextSetTmp < partition.size(); ++nextSetTmp)
+                                        if (partition.at(nextSetTmp).count(nextStateTmp) > 0) 
+                                            break;
+
+                                    if (nextSetTmp == nextSet)
+                                        groupStatesTmp.insert(stateTmp);
+                                }
+                            }
+                            if (groupStatesTmp.size() != groupStates.size()) {
+                                /* избавляемся от дупликатов */
+                                for (int state: groupStatesTmp)
+                                    partition.at(i).erase(state);
+
+                                partition.push_back(groupStatesTmp);
+                                isSplited = true;
+                                break;
+                            }
+                            else 
+                                break;    
+                        } 
+                    }
+                    if (isSplited)
+                        break;
+                }
+                if (isSplited)
+                    break;
+            }
+            if (!isSplited)
+                break;
+
+            isSplited = false;
+        }
+        /* создаемый новый минимальный ДКА */
+        Automaton* minDfa;
+        
+        if (dfa->number == -1)
+            minDfa = new Automaton;
+        else
+            minDfa = new Automaton(dfa->number);
+
+        minNdfa.push_back(minDfa);
+
+        /* ищем начальное состояние */
+        bool isFind = false;
+        int setNum;
+
+        for (setNum = 0; setNum < partition.size(); ++setNum) {
+            for (int state: partition.at(setNum)) {
+                if (state == 0) {
+                    isFind = true;
+                    break;
+                }
+            }
+            if (isFind)
+                break;
+        }
+        isFind = false;
+        /* первая группа -> стартовая группа */
+        std::set<int> setTmp = partition.at(setNum);
+        partition.erase(partition.begin() + setNum);
+        partition.insert(partition.begin(), setTmp);
+
+        for (int i = 0; i < partition.size(); ++i) {
+            for (int state: partition.at(i)) {
+                if (dfa->finalStates.count(state)) {
+                    minDfa->finalStates.insert(i);
+                    break;
+                }
+            }
+        }
+        int newTransitionsCounter = 0;
+
+        for (int i = 0; i < partition.size(); ++i) {
+            int state = *partition.at(i).begin();
+
+            if (state >= dfa->transitions.size()) {
+                if (i != (partition.size() - 1))
+                    minDfa->transitions.push_back(nullptr);
+
+                continue;
+            }
+            AdjacencyList* tmpTransition = dfa->transitions.at(state);
+
+            if (!tmpTransition) {
+                minDfa->transitions.push_back(nullptr);
+                continue;
+            }
+            int setNumTmp;
+
+            for (setNumTmp = 0; setNumTmp < partition.size(); ++setNumTmp) {
+                for (int stateTmp : partition.at(setNumTmp)) {
+                    if (std::holds_alternative<std::pair<char, int>>(tmpTransition->transition)) {
+                        std::pair<char, int> pair = std::get<std::pair<char, int>>(tmpTransition->transition);
+                        
+                        if (stateTmp == pair.second) {
+                            isFind = true;
+                            break;
+                        }
+                    }
+                    else {
+                        std::pair<int, int> pair = std::get<std::pair<int, int>>(tmpTransition->transition);
+                        
+                        if (stateTmp == pair.second) {
+                            isFind = true;
+                            break;
+                        }
+                    }
+                }
+                if (isFind)
+                    break;
+            }
+            isFind = false;
+            AdjacencyList* newTransition;
+
+            if (std::holds_alternative<std::pair<char, int>>(tmpTransition->transition)) {
+                std::pair<char, int> pair = std::get<std::pair<char, int>>(tmpTransition->transition);
+                newTransition = new AdjacencyList(pair.first, setNumTmp);
+            }
+            else {
+                std::pair<int, int> pair = std::get<std::pair<int, int>>(tmpTransition->transition);
+                newTransition = new AdjacencyList(pair.first, setNumTmp);
+            }
+            minDfa->transitions.push_back(newTransition);
+
+            while (tmpTransition->next) {
+                tmpTransition = tmpTransition->next;
+
+                for (setNumTmp = 0; setNumTmp < partition.size(); ++setNumTmp) {
+                    for (int stateTmp : partition.at(setNumTmp)) {
+                        if (std::holds_alternative<std::pair<char, int>>(tmpTransition->transition)) {
+                            std::pair<char, int> pair = std::get<std::pair<char, int>>(tmpTransition->transition);
+                            
+                            if (stateTmp == pair.second) {
+                                isFind = true;
+                                break;
+                            }
+                        }
+                        else {
+                            std::pair<int, int> pair = std::get<std::pair<int, int>>(tmpTransition->transition);
+                            
+                            if (stateTmp == pair.second) {
+                                isFind = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (isFind)
+                        break;
+                }
+                isFind = false;
+
+                if (std::holds_alternative<std::pair<char, int>>(tmpTransition->transition)) {
+                    std::pair<char, int> pair = std::get<std::pair<char, int>>(tmpTransition->transition);
+                    newTransition->next = new AdjacencyList(pair.first, setNumTmp);
+                }
+                else {
+                    std::pair<int, int> pair = std::get<std::pair<int, int>>(tmpTransition->transition);
+                    newTransition->next = new AdjacencyList(pair.first, setNumTmp);
+                }
+                newTransition = newTransition->next; 
+            }
+            newTransitionsCounter++;
+        }
+        /* включение стартового состояния */
+        minDfa->stateCount = partition.size();
+    }
+    return minNdfa;
+}
+
+void PrintAutomata(const std::vector<Automaton*>& automata) {
     int counter;
 
-    for (Dfa* dfa: ndfa) {
+    for (Automaton* automaton: automata) {
         counter = 0;
         std::cout << std::endl;
 
-        if (dfa->name == "") 
+        if (automaton->number == -1) 
             std::cout << "Main automata" << std::endl;
-        else 
-            std::cout << "\"" << dfa->name << "\"" << " automata" << std::endl;    
 
-        for (AdjacencyList* transition: dfa->transitions) {
-            while (transition != nullptr) {
+        else 
+            std::cout << "\"" << automaton->number << "\"" << " automata" << std::endl;    
+
+        for (AdjacencyList* transition: automaton->transitions) {
+            while (transition) {
+                /* переход по символу */
                 if (std::holds_alternative<std::pair<char, int>>(transition->transition)) {
                     std::cout << counter << " -> " << std::get<std::pair<char, int>>(transition->transition).second;
-                    std::cout << " '" << std::get<std::pair<char, int>>(transition->transition).first << "'" << std::endl;
+                    
+                    if (std::get<std::pair<char, int>>(transition->transition).first != '\0')
+                        std::cout << " '" << std::get<std::pair<char, int>>(transition->transition).first << "'" << std::endl;
+                    
+                    else 
+                        std::cout << " epsilon" << std::endl;
                 }
+                /* переход по группе */
                 else {
-                    std::cout << counter << " -> " << std::get<std::pair<std::string, int>>(transition->transition).second;
-                    std::cout << " \"" << std::get<std::pair<std::string, int>>(transition->transition).first << "\"" << std::endl;    
+                    std::cout << counter << " -> " << std::get<std::pair<int, int>>(transition->transition).second;
+                    std::cout << " \"" << std::get<std::pair<int, int>>(transition->transition).first << "\"" << std::endl;    
                 }
                 transition = transition->next;
             }
@@ -376,255 +610,10 @@ void print_ndfa(const std::vector<Dfa*>& ndfa) {
         }
         std::cout << "Final states:";
 
-        for (int final_state: dfa->finalStates)
-            std::cout << " " << final_state; 
+        for (int finalState: automaton->finalStates)
+            std::cout << " " << finalState;
+
         std::cout << std::endl;
     }
     std::cout << std::endl;
 }
-
-int get_transition(const Dfa& dfa, int state, std::variant<std::string, char> symbol) {
-    if (state >= dfa.transitions.size())
-        return -1;
-    AdjacencyList* current_transition = dfa.transitions.at(state);
-
-    while (current_transition != nullptr) {
-        if (std::holds_alternative<std::pair<char, int>>(current_transition->transition)) {
-            std::pair pair = std::get<std::pair<char, int>>(current_transition->transition);
-           
-            if (std::holds_alternative<char>(symbol)) { 
-                if (pair.first == std::get<char>(symbol))
-                    return pair.second;
-            }
-        }
-        else { 
-            std::pair pair = std::get<std::pair<std::string, int>>(current_transition->transition);
-           
-            if (std::holds_alternative<std::string>(symbol)) {
-                if (pair.first == std::get<std::string>(symbol))
-                    return pair.second;
-            }
-        }
-        current_transition = current_transition->next;
-    }
-    return -1;             
-}
-
-
-std::vector<Dfa*> minimize_dfa(std::vector<Dfa*>& ndfa) {
-    std::vector<Dfa*> min_ndfa;
-
-    for (const Dfa* dfa: ndfa) {
-        std::unordered_set<std::variant<std::string, char>> alphabet;
-        std::vector<std::set<int>> partition;
-
-        for (AdjacencyList* current_transition: dfa->transitions) {
-            while (current_transition) {
-                if (std::holds_alternative<std::pair<char, int>>(current_transition->transition)) 
-                    alphabet.insert(std::get<std::pair<char, int>>(current_transition->transition).first);
-                else
-                    alphabet.insert(std::get<std::pair<std::string, int>>(current_transition->transition).first);
-                current_transition = current_transition->next;
-            }
-        }
-        std::set<int> accepting, non_accepting;
-
-        for (int i = 0; i < dfa->stateCount; ++i) {
-            if (dfa->finalStates.count(i))
-                accepting.insert(i);
-            else 
-                non_accepting.insert(i);
-        }
-        if (!non_accepting.empty()) partition.push_back(non_accepting);
-        if (!accepting.empty()) partition.push_back(accepting);
-        bool is_splited = false;
-        
-        for (;;) { 
-            for (int i = 0; i < partition.size(); ++i) {
-                std::set<int> group_states = partition.at(i);
-
-                for (std::variant<std::string, char> symbol: alphabet) { 
-                    for (int current_state: group_states) {
-                        int next_state = get_transition(*dfa, current_state, symbol);
-
-                        if (next_state != -1) {
-                            int next_set;
-
-                            for (next_set = 0; next_set < partition.size(); ++next_set) {
-                                if (partition.at(next_set).count(next_state) > 0) 
-                                    break;
-                            }
-                            std::set<int> group_states_tmp;
-                            group_states_tmp.insert(current_state);
-
-                            for (int state_tmp: group_states) {
-                                int next_state_tmp = get_transition(*dfa, state_tmp, symbol);
-
-                                if (next_state_tmp != -1) {
-                                    int next_set_tmp;
-
-                                    for (next_set_tmp = 0; next_set_tmp < partition.size(); ++next_set_tmp) {
-                                        if (partition.at(next_set_tmp).count(next_state_tmp) > 0) 
-                                            break;
-                                    }
-                                    if (next_set_tmp == next_set)
-                                        group_states_tmp.insert(state_tmp);
-                                }
-                            }
-                            if (group_states_tmp.size() != group_states.size()) {
-                                // removing duplicates
-                                for (int state: group_states_tmp)
-                                    partition.at(i).erase(state);
-                                partition.push_back(group_states_tmp);
-                                is_splited = true;
-                                break;
-                            }
-                            else {
-                                break;    
-                            }
-                        } 
-                    }
-                    if (is_splited)
-                        break;
-                }
-                if (is_splited)
-                    break;
-            }
-            if (!is_splited)
-                break;
-            is_splited = false;
-        }
-        // Creating a new minimized DFA
-        Dfa* min_dfa;
-        
-        if (dfa->name == "")
-            min_dfa = new Dfa;
-        else
-            min_dfa = new Dfa(dfa->name);
-        min_ndfa.push_back(min_dfa);
-
-        // Looking for the initial state
-        bool is_find = false;
-        int set_num;
-
-        for (set_num = 0; set_num < partition.size(); ++set_num) {
-            for (int state: partition.at(set_num)) {
-                if (state == 0) {
-                    is_find = true;
-                    break;
-                }
-            }
-            if (is_find)
-                break;
-        }
-        is_find = false;
-        // first group -> start group
-        std::set<int> set_tmp = partition.at(set_num);
-        partition.erase(partition.begin() + set_num);
-        partition.insert(partition.begin(), set_tmp);
-
-        for (int i = 0; i < partition.size(); ++i) {
-            for (int state: partition.at(i)) {
-                if (dfa->finalStates.count(state)) {
-                    min_dfa->finalStates.insert(i);
-                    break;
-                }
-            }
-        }
-        //min_dfa->transitions.resize(partition.size(), nullptr); 
-        int new_transitions_counter = 0;
-
-        for (int i = 0; i < partition.size(); ++i) {
-            int state = *partition.at(i).begin();
-
-            if (state >= dfa->transitions.size()) {
-                if (i != (partition.size() - 1))
-                    min_dfa->transitions.push_back(nullptr);
-                continue;
-            }
-            AdjacencyList* tmp_transition = dfa->transitions.at(state);
-
-            if (tmp_transition == nullptr) {
-                min_dfa->transitions.push_back(nullptr);
-                continue;
-            }
-            int set_num_tmp;
-
-            for (set_num_tmp = 0; set_num_tmp < partition.size(); ++set_num_tmp) {
-                for (int state_tmp : partition.at(set_num_tmp)) {
-                    if (std::holds_alternative<std::pair<char, int>>(tmp_transition->transition)) {
-                        std::pair<char, int> pair = std::get<std::pair<char, int>>(tmp_transition->transition);
-                        
-                        if (state_tmp == pair.second) {
-                            is_find = true;
-                            break;
-                        }
-                    }
-                    else {
-                        std::pair<std::string, int> pair = std::get<std::pair<std::string, int>>(tmp_transition->transition);
-                        
-                        if (state_tmp == pair.second) {
-                            is_find = true;
-                            break;
-                        }
-                    }
-                }
-                if (is_find)
-                    break;
-            }
-            is_find = false;
-            AdjacencyList* new_transition;
-
-            if (std::holds_alternative<std::pair<char, int>>(tmp_transition->transition)) {
-                std::pair<char, int> pair = std::get<std::pair<char, int>>(tmp_transition->transition);
-                new_transition = new AdjacencyList(pair.first, set_num_tmp);
-            }
-            else {
-                std::pair<std::string, int> pair = std::get<std::pair<std::string, int>>(tmp_transition->transition);
-                new_transition = new AdjacencyList(pair.first, set_num_tmp);
-            }
-            min_dfa->transitions.push_back(new_transition);
-
-            while (tmp_transition->next != nullptr) {
-                tmp_transition = tmp_transition->next;
-
-                for (set_num_tmp = 0; set_num_tmp < partition.size(); ++set_num_tmp) {
-                    for (int state_tmp : partition.at(set_num_tmp)) {
-                        if (std::holds_alternative<std::pair<char, int>>(tmp_transition->transition)) {
-                            std::pair<char, int> pair = std::get<std::pair<char, int>>(tmp_transition->transition);
-                            
-                            if (state_tmp == pair.second) {
-                                is_find = true;
-                                break;
-                            }
-                        }
-                        else {
-                            std::pair<std::string, int> pair = std::get<std::pair<std::string, int>>(tmp_transition->transition);
-                            
-                            if (state_tmp == pair.second) {
-                                is_find = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (is_find)
-                        break;
-                }
-                is_find = false;
-
-                if (std::holds_alternative<std::pair<char, int>>(tmp_transition->transition)) {
-                    std::pair<char, int> pair = std::get<std::pair<char, int>>(tmp_transition->transition);
-                    new_transition->next = new AdjacencyList(pair.first, set_num_tmp);
-                }
-                else {
-                    std::pair<std::string, int> pair = std::get<std::pair<std::string, int>>(tmp_transition->transition);
-                    new_transition->next = new AdjacencyList(pair.first, set_num_tmp);
-                }
-                new_transition = new_transition->next; 
-            }
-            new_transitions_counter++;
-        }
-        min_dfa->stateCount = partition.size();
-    }
-    return min_ndfa;
-}*/
