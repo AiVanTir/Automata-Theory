@@ -7,7 +7,7 @@
 class RegexRecognizer : public IMyRecognizer {
 public:
     bool CheckString(const std::string& input, std::vector<std::string>& AllNames, std::vector<std::string>& Freaks) override {
-        std::regex pattern(R"(^(int|short|long)\s([a-zA-Z][a-zA-Z0-9]{0,15})\[([1-9][0-9]{0,8})\]\=\{(-?[0-9]+(?:,-?[0-9]+)*)?\}$)");
+        static const std::regex pattern(R"(^(int|short|long)\s+([a-zA-Z][a-zA-Z0-9]{0,15})\[(?:[1-9][0-9]{0,8})\]=\{(-?\d+(?:,-?\d+)*)?\}$)", std::regex::optimize);
 
         std::smatch matches;
         if (!std::regex_match(input, matches, pattern)) {
