@@ -86,11 +86,11 @@ bool Regex::GroupMatch(int groupDfaNum, std::string_view stringToCheck, int& pos
             if (groupDfa->finalStates.count(currentState) > 0) {
                 for (int i = 0; i < data.capturedGroups.size(); ++i) {
                     if (data.capturedGroups.at(i).first == groupDfa->number) {
-                        data.capturedGroups.at(i).second = stringToCheck.substr(positionSave, position);
+                        data.capturedGroups.at(i).second = stringToCheck.substr(positionSave, position - positionSave);
                         return true;
                     }
                 }
-                std::pair<int, std::string> pair(groupDfa->number, stringToCheck.substr(positionSave, position));
+                std::pair<int, std::string> pair(groupDfa->number, stringToCheck.substr(positionSave, position - positionSave));
                 data.capturedGroups.push_back(pair);
                 return true;
             }
@@ -136,11 +136,11 @@ bool Regex::GroupMatch(int groupDfaNum, std::string_view stringToCheck, int& pos
         if (groupDfa->finalStates.count(currentState) > 0) {
             for (int i = 0; i < data.capturedGroups.size(); ++i) {
                 if (data.capturedGroups.at(i).first == groupDfa->number) {
-                    data.capturedGroups.at(i).second = stringToCheck.substr(positionSave, position);
+                    data.capturedGroups.at(i).second = stringToCheck.substr(positionSave, position - positionSave);
                     return true;
                 }
             }
-            std::pair<int, std::string> pair(groupDfa->number, stringToCheck.substr(positionSave, position));
+            std::pair<int, std::string> pair(groupDfa->number, stringToCheck.substr(positionSave, position - positionSave));
             data.capturedGroups.push_back(pair);
             return true;
         }
@@ -171,11 +171,11 @@ bool Regex::GroupMatch(int groupDfaNum, std::string_view stringToCheck, int& pos
     if (groupDfa->finalStates.count(currentState) > 0) {
         for (int i = 0; i < data.capturedGroups.size(); ++i) {
             if (data.capturedGroups.at(i).first == groupDfa->number) {
-                data.capturedGroups.at(i).second = stringToCheck.substr(positionSave, position);
+                data.capturedGroups.at(i).second = stringToCheck.substr(positionSave, position - positionSave);
                 return true;
             }
         }
-        std::pair<int, std::string> pair(groupDfa->number, stringToCheck.substr(positionSave, position));
+        std::pair<int, std::string> pair(groupDfa->number, stringToCheck.substr(positionSave, position - positionSave));
         data.capturedGroups.push_back(pair);
         return true;
     }
@@ -215,18 +215,40 @@ bool Regex::Match(std::string_view stringToMatch, RegexData& data) {
                 std::pair<int, int> pair = std::get<std::pair<int, int>>(currentTransition->transition);
                 int groupDfaNum;
 
-                for (groupDfaNum = 0; groupDfaNum < pMinNdfaImpl->minNdfa.size(); ++groupDfaNum) 
-                    if (pMinNdfaImpl->minNdfa.at(groupDfaNum)->number == pair.first) 
-                        break;
+                if (pair.first > 0) {
+                    for (groupDfaNum = 1; groupDfaNum < pMinNdfaImpl->minNdfa.size(); ++groupDfaNum) 
+                        if (pMinNdfaImpl->minNdfa.at(groupDfaNum)->number == pair.first) 
+                            break;
 
-                if (!GroupMatch(groupDfaNum, stringToMatch, i, data)) {
-                    data.capturedGroups.clear();
-                    return false;
+                    if (!GroupMatch(groupDfaNum, stringToMatch, i, data)) {
+                        data.capturedGroups.clear();
+                        return false;
+                    }
+                    i--;
+                    currentState = pair.second;
+                    isFind = true;
+                    break;
                 }
-                i--;
-                currentState = pair.second;
-                isFind = true;
-                break;
+                else {
+                    std::string groupValue;
+
+                    for (const auto& group : data.capturedGroups) {
+                        if (group.first == -pair.first) {
+                            groupValue = group.second;
+                            break;
+                        }
+                    }
+                    std::cout << groupValue << std::endl;
+                    std::cout << i << std::endl;
+                    if (stringToMatch.compare(i, groupValue.length(), groupValue) != 0) {
+                        data.capturedGroups.clear();
+                        return false;
+                    }
+                    i = i + groupValue.length() - 1;
+                    currentState = pair.second;
+                    isFind = true;
+                    break;
+                }
             }        
             currentTransition = currentTransition->next;
         }
@@ -237,7 +259,9 @@ bool Regex::Match(std::string_view stringToMatch, RegexData& data) {
         data.capturedGroups.clear();
         return false;
     }
-    if (!(currentState >= minDfa->transitions.size())) {
+    isFind = false;
+
+    while (currentState < minDfa->transitions.size() && minDfa->finalStates.count(currentState) <= 0) {
         AdjacencyList* currentTransition = minDfa->transitions.at(currentState);
 
         while (currentTransition) {
@@ -245,19 +269,42 @@ bool Regex::Match(std::string_view stringToMatch, RegexData& data) {
                 std::pair<int, int> pair = std::get<std::pair<int, int>>(currentTransition->transition);
                 int groupDfaNum;
 
-                for (groupDfaNum = 0; groupDfaNum < pMinNdfaImpl->minNdfa.size(); ++groupDfaNum) 
-                    if (pMinNdfaImpl->minNdfa.at(groupDfaNum)->number == pair.first) 
+                if (pair.first > 0) {
+                    for (groupDfaNum = 1; groupDfaNum < pMinNdfaImpl->minNdfa.size(); ++groupDfaNum) 
+                        if (pMinNdfaImpl->minNdfa.at(groupDfaNum)->number == pair.first) 
+                            break;
+
+                    int strLen = stringToMatch.length();
+
+                    if (GroupMatch(groupDfaNum, stringToMatch, strLen, data)) {
+                        currentState = pair.second;
+                        isFind = true;
                         break;
+                    }
+                }
+                else {
+                    std::string groupValue;
 
-                int strLen = stringToMatch.length();
-
-                if (GroupMatch(groupDfaNum, stringToMatch, strLen, data)) {
-                    currentState = pair.second;
-                    break;
+                    for (const auto& group : data.capturedGroups) {
+                        if (group.first == -pair.first) {
+                            groupValue = group.second;
+                            break;
+                        }
+                    }
+                    if (groupValue.length() == 0) {
+                        currentState = pair.second;
+                        isFind = true;
+                        break;
+                    }
                 }
             }
             currentTransition = currentTransition->next;
         }
+        if (isFind == true) {
+            isFind = false;
+            continue;
+        }
+        break;
     }
     if (minDfa->finalStates.count(currentState) > 0) {
         data.matchedString = stringToMatch;
@@ -300,18 +347,38 @@ bool Regex::Match(std::string_view pattern, std::string_view stringToMatch, Rege
                 std::pair<int, int> pair = std::get<std::pair<int, int>>(currentTransition->transition);
                 int groupDfaNum;
 
-                for (groupDfaNum = 0; groupDfaNum < pMinNdfaImpl->minNdfa.size(); ++groupDfaNum) 
-                    if (pMinNdfaImpl->minNdfa.at(groupDfaNum)->number == pair.first) 
-                        break;
+                if (pair.first > 0) {
+                    for (groupDfaNum = 1; groupDfaNum < pMinNdfaImpl->minNdfa.size(); ++groupDfaNum) 
+                        if (pMinNdfaImpl->minNdfa.at(groupDfaNum)->number == pair.first) 
+                            break;
 
-                if (!GroupMatch(groupDfaNum, stringToMatch, i, data)) {
-                    data.capturedGroups.clear();
-                    return false;
+                    if (!GroupMatch(groupDfaNum, stringToMatch, i, data)) {
+                        data.capturedGroups.clear();
+                        return false;
+                    }
+                    i--;
+                    currentState = pair.second;
+                    isFind = true;
+                    break;
                 }
-                i--;
-                currentState = pair.second;
-                isFind = true;
-                break;
+                else {
+                    std::string groupValue;
+
+                    for (const auto& group : data.capturedGroups) {
+                        if (group.first == -pair.first) {
+                            groupValue = group.second;
+                            break;
+                        }
+                    }
+                    if (stringToMatch.compare(i, groupValue.length(), groupValue) != 0) {
+                        data.capturedGroups.clear();
+                        return false;
+                    }
+                    i = i + groupValue.length() - 1;
+                    currentState = pair.second;
+                    isFind = true;
+                    break;
+                }
             }        
             currentTransition = currentTransition->next;
         }
@@ -322,7 +389,9 @@ bool Regex::Match(std::string_view pattern, std::string_view stringToMatch, Rege
         data.capturedGroups.clear();
         return false;
     }
-    if (!(currentState >= minDfa->transitions.size())) {
+    isFind = false;
+
+    while (currentState < minDfa->transitions.size() && minDfa->finalStates.count(currentState) <= 0) {
         AdjacencyList* currentTransition = minDfa->transitions.at(currentState);
 
         while (currentTransition) {
@@ -330,19 +399,42 @@ bool Regex::Match(std::string_view pattern, std::string_view stringToMatch, Rege
                 std::pair<int, int> pair = std::get<std::pair<int, int>>(currentTransition->transition);
                 int groupDfaNum;
 
-                for (groupDfaNum = 0; groupDfaNum < pMinNdfaImpl->minNdfa.size(); ++groupDfaNum) 
-                    if (pMinNdfaImpl->minNdfa.at(groupDfaNum)->number == pair.first) 
+                if (pair.first > 0) {
+                    for (groupDfaNum = 1; groupDfaNum < pMinNdfaImpl->minNdfa.size(); ++groupDfaNum) 
+                        if (pMinNdfaImpl->minNdfa.at(groupDfaNum)->number == pair.first) 
+                            break;
+
+                    int strLen = stringToMatch.length();
+
+                    if (GroupMatch(groupDfaNum, stringToMatch, strLen, data)) {
+                        currentState = pair.second;
+                        isFind = true;
                         break;
+                    }
+                }
+                else {
+                    std::string groupValue;
 
-                int strLen = stringToMatch.length();
-
-                if (GroupMatch(groupDfaNum, stringToMatch, strLen, data)) {
-                    currentState = pair.second;
-                    break;
+                    for (const auto& group : data.capturedGroups) {
+                        if (group.first == -pair.first) {
+                            groupValue = group.second;
+                            break;
+                        }
+                    }
+                    if (groupValue.length() == 0) {
+                        currentState = pair.second;
+                        isFind = true;
+                        break;
+                    }
                 }
             }
             currentTransition = currentTransition->next;
         }
+        if (isFind == true) {
+            isFind = false;
+            continue;
+        }
+        break;
     }
     if (minDfa->finalStates.count(currentState) > 0) {
         data.matchedString = stringToMatch;
@@ -360,17 +452,21 @@ std::vector<RegexData> Regex::FindAll(std::string_view stringToCheck) {
         std::cerr << "Compile first" << std::endl;
         return ndata;
     }
-    if (Match("", data))
-        ndata.push_back(data);
-
-    int length = 0;
+    if (stringToCheck.size() == 0)
+        if (Match("", data))
+            ndata.push_back(data);
 
     for (int i = 0; i <= stringToCheck.size(); ++i) {
-        if (Match(stringToCheck.substr(i, length), data)) {
-            ndata.push_back(data);
-            length = 0;
+        int length = 1;
+
+        while ((i + length) <= stringToCheck.size()) {
+            if (Match(stringToCheck.substr(i, length), data)) {
+                ndata.push_back(data);
+                i = i + length - 1;
+                break;
+            }
+            length++;
         }
-        length++;
     }
     return ndata;
 }
@@ -383,17 +479,21 @@ std::vector<RegexData> Regex::FindAll(std::string_view pattern, std::string_view
         std::cerr << "Incorrect regular expression\n";
         return ndata;
     }
-    if (Match("", data))
-        ndata.push_back(data);
-    
-    int length = 0;
+    if (stringToCheck.size() == 0)
+        if (Match("", data))
+            ndata.push_back(data);
 
     for (int i = 0; i <= stringToCheck.size(); ++i) {
-        if (Match(stringToCheck.substr(i, length), data)) {
-            ndata.push_back(data);
-            length = 0;
+        int length = 1;
+
+        while ((i + length) <= stringToCheck.size()) {
+            if (Match(stringToCheck.substr(i, length), data)) {
+                ndata.push_back(data);
+                i = i + length - 1;
+                break;
+            }
+            length++;
         }
-        length++;
     }
     return ndata;
 }
@@ -439,10 +539,10 @@ bool Regex::RecoverRegex(std::string& pattern) {
     return true; 
 }
 
-void Regex::ComplementRegex() {
+bool Regex::ComplementRegex() {
     if (!pMinNdfaImpl) {
         std::cerr << "Compile first" << std::endl;
-        return;
+        return false;
     }
     int start = -1, end, counter = 0;
 
@@ -458,7 +558,6 @@ void Regex::ComplementRegex() {
     for (int i = 0; i < pMinNdfaImpl->minNdfa.size(); ++i) {
         Automaton* dfa = pMinNdfaImpl->minNdfa.at(i);
 
-        /* случай пустого регулярного выражения */
         if (dfa->transitions.size() == 0) {
             dfa->stateCount++;
             dfa->finalStates.erase(0);
@@ -525,8 +624,465 @@ void Regex::ComplementRegex() {
             }
         }
     }
+    return true;
+}
+
+bool Regex::ComplementRegex(std::string_view pattern) {
+    if (!Compile(pattern)) {
+        std::cerr << "Incorrect regular expression\n";
+        return false;
+    }
+    int start = -1, end, counter = 0;
+
+    for (int i = 0; i < 256; ++i) {
+        if (isprint(i)) {
+            if (start == -1) {
+                start = i;
+            }
+            end = i;
+            counter++;
+        }
+    }
+    for (int i = 0; i < pMinNdfaImpl->minNdfa.size(); ++i) {
+        Automaton* dfa = pMinNdfaImpl->minNdfa.at(i);
+
+        if (dfa->transitions.size() == 0) {
+            dfa->stateCount++;
+            dfa->finalStates.erase(0);
+            dfa->finalStates.insert(1);
+
+            AdjacencyList* firstTransition = new AdjacencyList(static_cast<char>(start), 1);
+            dfa->transitions.push_back(firstTransition);
+
+            for (int j = start + 1; j <= end; ++j) {
+                firstTransition->next = new AdjacencyList(static_cast<char>(j), 1);
+                firstTransition = firstTransition->next;
+            }
+            AdjacencyList* secondTransition = new AdjacencyList(static_cast<char>(start), 1);
+            dfa->transitions.push_back(secondTransition);
+            
+            for (int j = start + 1; j <= end; ++j) {
+                secondTransition->next = new AdjacencyList(static_cast<char>(j), 1);
+                secondTransition = secondTransition->next;
+            }
+            continue;
+        }
+        if (i >= 1) {
+            for (int j = 0; j < dfa->stateCount; ++j) 
+                dfa->finalStates.insert(j);
+
+            continue;
+        }
+        dfa->stateCount++;
+        std::set<int> newFinalStates;
+        
+        for (int j = 0; j < dfa->stateCount; ++j) {
+            if (dfa->finalStates.find(j) == dfa->finalStates.end()) 
+                newFinalStates.insert(j);
+        }
+        dfa->finalStates = newFinalStates;
+        AdjacencyList* endTransition = new AdjacencyList(static_cast<char>(start), dfa->stateCount - 1);
+
+        if (dfa->transitions.size() == (dfa->stateCount - 2))
+            dfa->transitions.push_back(nullptr);
+
+        dfa->transitions.push_back(endTransition); 
+
+        for (int j = start + 1; j <= end; ++j) {
+            endTransition->next = new AdjacencyList(static_cast<char>(j), dfa->stateCount - 1);
+            endTransition = endTransition->next;
+        }
+        for (int j = 0; j < dfa->transitions.size() - 1; ++j) {
+            AdjacencyList* currentTransition = dfa->transitions.at(j);
+
+            if (!currentTransition) {
+                currentTransition = new AdjacencyList(static_cast<char>(start), dfa->stateCount - 1);
+                dfa->transitions.at(j) = currentTransition;
+            }
+            else {
+                while (currentTransition->next) 
+                    currentTransition = currentTransition->next;
+
+                currentTransition->next = new AdjacencyList(static_cast<char>(start), dfa->stateCount - 1);
+                currentTransition = currentTransition->next;
+            }
+            for (int k = start + 1; k <= end; ++k) {
+                currentTransition->next = new AdjacencyList(static_cast<char>(k), dfa->stateCount - 1);
+                currentTransition = currentTransition->next;
+            }
+        }
+    }
+    return true;
 }
         
-void Regex::IntersectRegex(std::string_view pattern) {
+bool Regex::IntersectRegex(std::string_view pattern) {
+    if (!pMinNdfaImpl) {
+        std::cerr << "Compile first" << std::endl;
+        return false;
+    }
+    MinNdfaImpl *pMinNdfaImpl1 = this->pMinNdfaImpl;
+    this->pMinNdfaImpl = nullptr;
 
+    if (!Compile(pattern)) {
+        std::cerr << "Incorrect regular expression\n";
+        this->pMinNdfaImpl = pMinNdfaImpl1;
+        return false;
+    }
+    MinNdfaImpl *pMinNdfaImpl2 = this->pMinNdfaImpl;
+    this->pMinNdfaImpl = nullptr;
+
+    std::vector<Automaton*> minNdfaVector;
+
+    Automaton* dfa1 = pMinNdfaImpl1->minNdfa[0];
+    Automaton* dfa2 = pMinNdfaImpl2->minNdfa[0];
+    
+    if (!dfa1 || !dfa2) {
+        std::cerr << "Invalid automata\n";
+        delete pMinNdfaImpl2;
+        this->pMinNdfaImpl = pMinNdfaImpl1;
+        return false;
+    }
+    Automaton* result = new Automaton();
+
+    std::map<std::pair<int, int>, int> stateMap;
+
+    std::queue<std::pair<int, int>> stateQueue;
+
+    std::pair<int, int> initialState = {0, 0};
+    stateMap[initialState] = 0;
+    stateQueue.push(initialState);
+    result->stateCount = 1;
+
+    if (dfa1->finalStates.count(0) > 0 && dfa2->finalStates.count(0) > 0) 
+        result->finalStates.insert(0);
+
+    while (!stateQueue.empty()) {
+        auto currentPair = stateQueue.front();
+        stateQueue.pop();
+        
+        int currentState1 = currentPair.first;
+        int currentState2 = currentPair.second;
+        int currentResultState = stateMap[currentPair];
+
+        while (result->transitions.size() <= currentResultState) 
+            result->transitions.push_back(nullptr);
+
+        AdjacencyList* transitions1 = currentState1 < dfa1->transitions.size() ? dfa1->transitions[currentState1] : nullptr;
+        AdjacencyList* transitions2 = currentState2 < dfa2->transitions.size() ? dfa2->transitions[currentState2] : nullptr;
+
+        std::map<char, int> symbolToState1;
+
+        while (transitions1) {
+            if (std::holds_alternative<std::pair<char, int>>(transitions1->transition)) {
+                auto [symbol, nextState] = std::get<std::pair<char, int>>(transitions1->transition);
+                symbolToState1[symbol] = nextState;
+            }
+            transitions1 = transitions1->next;
+        }
+        while (transitions2) {
+            if (std::holds_alternative<std::pair<char, int>>(transitions2->transition)) {
+                auto [symbol, nextState2] = std::get<std::pair<char, int>>(transitions2->transition);
+
+                if (symbolToState1.count(symbol) > 0) {
+                    int nextState1 = symbolToState1[symbol];
+                    std::pair<int, int> nextStatePair = {nextState1, nextState2};
+
+                    if (stateMap.count(nextStatePair) == 0) {
+                        int newState = result->stateCount++;
+                        stateMap[nextStatePair] = newState;
+                        stateQueue.push(nextStatePair);
+
+                        if (dfa1->finalStates.count(nextState1) > 0 && dfa2->finalStates.count(nextState2) > 0) 
+                            result->finalStates.insert(newState);
+                    }
+                    int targetState = stateMap[nextStatePair];
+                    AdjacencyList* newTransition = new AdjacencyList(symbol, targetState);
+                    
+                    if (!result->transitions[currentResultState])
+                        result->transitions[currentResultState] = newTransition;
+
+                    else {
+                        AdjacencyList* current = result->transitions[currentResultState];
+
+                        while (current->next) 
+                            current = current->next;
+
+                        current->next = newTransition;
+                    }
+                }
+            }
+            transitions2 = transitions2->next;
+        }
+    }
+
+    minNdfaVector.push_back(result);
+
+    for (size_t i = 1; i < pMinNdfaImpl1->minNdfa.size(); i++) {
+        Automaton* source = pMinNdfaImpl1->minNdfa[i];
+        Automaton* copy = new Automaton(source->number);
+        copy->stateCount = source->stateCount;
+        copy->finalStates = source->finalStates;
+
+        for (size_t j = 0; j < source->transitions.size(); j++) {
+            AdjacencyList* sourceTransition = source->transitions[j];
+            AdjacencyList* copyTransition = nullptr;
+            AdjacencyList* current = nullptr;
+            
+            while (sourceTransition) {
+                AdjacencyList* newTransition = nullptr;
+                
+                if (std::holds_alternative<std::pair<char, int>>(sourceTransition->transition)) {
+                    auto [symbol, state] = std::get<std::pair<char, int>>(sourceTransition->transition);
+                    newTransition = new AdjacencyList(symbol, state);
+                } 
+                else {
+                    auto [group, state] = std::get<std::pair<int, int>>(sourceTransition->transition);
+                    newTransition = new AdjacencyList(group, state);
+                }
+                if (!copyTransition) {
+                    copyTransition = newTransition;
+                    current = copyTransition;
+                } 
+                else {
+                    current->next = newTransition;
+                    current = current->next;
+                }
+                sourceTransition = sourceTransition->next;
+            }
+            copy->transitions.push_back(copyTransition);
+        }
+        minNdfaVector.push_back(copy);
+    }
+    
+    for (size_t i = 1; i < pMinNdfaImpl2->minNdfa.size(); i++) {
+        Automaton* source = pMinNdfaImpl2->minNdfa[i];
+        Automaton* copy = new Automaton(source->number);
+        copy->stateCount = source->stateCount;
+        copy->finalStates = source->finalStates;
+
+        for (size_t j = 0; j < source->transitions.size(); j++) {
+            AdjacencyList* sourceTransition = source->transitions[j];
+            AdjacencyList* copyTransition = nullptr;
+            AdjacencyList* current = nullptr;
+            
+            while (sourceTransition) {
+                AdjacencyList* newTransition = nullptr;
+                
+                if (std::holds_alternative<std::pair<char, int>>(sourceTransition->transition)) {
+                    auto [symbol, state] = std::get<std::pair<char, int>>(sourceTransition->transition);
+                    newTransition = new AdjacencyList(symbol, state);
+                } 
+                else {
+                    auto [group, state] = std::get<std::pair<int, int>>(sourceTransition->transition);
+                    newTransition = new AdjacencyList(group, state);
+                }
+                if (!copyTransition) {
+                    copyTransition = newTransition;
+                    current = copyTransition;
+                } 
+                else {
+                    current->next = newTransition;
+                    current = current->next;
+                }
+                sourceTransition = sourceTransition->next;
+            }
+            copy->transitions.push_back(copyTransition);
+        }
+        minNdfaVector.push_back(copy);
+    }
+    this->pMinNdfaImpl = new MinNdfaImpl(minNdfaVector);
+
+    delete pMinNdfaImpl1;
+    delete pMinNdfaImpl2;
+    
+    return true;
+}
+
+bool Regex::IntersectRegex(std::string_view pattern1, std::string_view pattern2) {
+    MinNdfaImpl *pOriginalImpl = this->pMinNdfaImpl;
+    this->pMinNdfaImpl = nullptr;
+
+    if (!Compile(pattern1)) {
+        std::cerr << "Incorrect regular expression 1\n";
+        this->pMinNdfaImpl = pOriginalImpl;
+        return false;
+    }
+    MinNdfaImpl *pMinNdfaImpl1 = this->pMinNdfaImpl;
+    this->pMinNdfaImpl = nullptr;
+
+    if (!Compile(pattern2)) {
+        std::cerr << "Incorrect regular expression 2\n";
+        this->pMinNdfaImpl = pOriginalImpl;
+        delete pMinNdfaImpl1;
+        return false;
+    }
+    MinNdfaImpl *pMinNdfaImpl2 = this->pMinNdfaImpl;
+    this->pMinNdfaImpl = nullptr;
+
+    std::vector<Automaton*> minNdfaVector;
+
+    Automaton* dfa1 = pMinNdfaImpl1->minNdfa[0];
+    Automaton* dfa2 = pMinNdfaImpl2->minNdfa[0];
+    
+    if (!dfa1 || !dfa2) {
+        std::cerr << "Invalid automata\n";
+        delete pMinNdfaImpl1;
+        delete pMinNdfaImpl2;
+        this->pMinNdfaImpl = pOriginalImpl;
+        return false;
+    }
+    Automaton* result = new Automaton();
+
+    std::map<std::pair<int, int>, int> stateMap;
+
+    std::queue<std::pair<int, int>> stateQueue;
+
+    std::pair<int, int> initialState = {0, 0};
+    stateMap[initialState] = 0;
+    stateQueue.push(initialState);
+    result->stateCount = 1;
+
+    if (dfa1->finalStates.count(0) > 0 && dfa2->finalStates.count(0) > 0)
+        result->finalStates.insert(0);
+
+    while (!stateQueue.empty()) {
+        auto currentPair = stateQueue.front();
+        stateQueue.pop();
+        
+        int currentState1 = currentPair.first;
+        int currentState2 = currentPair.second;
+        int currentResultState = stateMap[currentPair];
+
+        while (result->transitions.size() <= currentResultState)
+            result->transitions.push_back(nullptr);
+
+        AdjacencyList* transitions1 = currentState1 < dfa1->transitions.size() ? dfa1->transitions[currentState1] : nullptr;
+        AdjacencyList* transitions2 = currentState2 < dfa2->transitions.size() ? dfa2->transitions[currentState2] : nullptr;
+
+        std::map<char, int> symbolToState1;
+        while (transitions1) {
+            if (std::holds_alternative<std::pair<char, int>>(transitions1->transition)) {
+                auto [symbol, nextState] = std::get<std::pair<char, int>>(transitions1->transition);
+                symbolToState1[symbol] = nextState;
+            }
+            transitions1 = transitions1->next;
+        }
+        while (transitions2) {
+            if (std::holds_alternative<std::pair<char, int>>(transitions2->transition)) {
+                auto [symbol, nextState2] = std::get<std::pair<char, int>>(transitions2->transition);
+
+                if (symbolToState1.count(symbol) > 0) {
+                    int nextState1 = symbolToState1[symbol];
+                    std::pair<int, int> nextStatePair = {nextState1, nextState2};
+
+                    if (stateMap.count(nextStatePair) == 0) {
+                        int newState = result->stateCount++;
+                        stateMap[nextStatePair] = newState;
+                        stateQueue.push(nextStatePair);
+
+                        if (dfa1->finalStates.count(nextState1) > 0 && dfa2->finalStates.count(nextState2) > 0)
+                            result->finalStates.insert(newState);
+                    }
+                    int targetState = stateMap[nextStatePair];
+                    AdjacencyList* newTransition = new AdjacencyList(symbol, targetState);
+                    
+                    if (!result->transitions[currentResultState])
+                        result->transitions[currentResultState] = newTransition;
+
+                    else {
+                        AdjacencyList* current = result->transitions[currentResultState];
+
+                        while (current->next)
+                            current = current->next;
+
+                        current->next = newTransition;
+                    }
+                }
+            }
+            transitions2 = transitions2->next;
+        }
+    }
+    minNdfaVector.push_back(result);
+
+    for (size_t i = 1; i < pMinNdfaImpl1->minNdfa.size(); i++) {
+        Automaton* source = pMinNdfaImpl1->minNdfa[i];
+        Automaton* copy = new Automaton(source->number);
+        copy->stateCount = source->stateCount;
+        copy->finalStates = source->finalStates;
+
+        for (size_t j = 0; j < source->transitions.size(); j++) {
+            AdjacencyList* sourceTransition = source->transitions[j];
+            AdjacencyList* copyTransition = nullptr;
+            AdjacencyList* current = nullptr;
+            
+            while (sourceTransition) {
+                AdjacencyList* newTransition = nullptr;
+                
+                if (std::holds_alternative<std::pair<char, int>>(sourceTransition->transition)) {
+                    auto [symbol, state] = std::get<std::pair<char, int>>(sourceTransition->transition);
+                    newTransition = new AdjacencyList(symbol, state);
+                } 
+                else {
+                    auto [group, state] = std::get<std::pair<int, int>>(sourceTransition->transition);
+                    newTransition = new AdjacencyList(group, state);
+                }
+                if (!copyTransition) {
+                    copyTransition = newTransition;
+                    current = copyTransition;
+                } 
+                else {
+                    current->next = newTransition;
+                    current = current->next;
+                }
+                sourceTransition = sourceTransition->next;
+            }
+            copy->transitions.push_back(copyTransition);
+        }
+        minNdfaVector.push_back(copy);
+    }
+    for (size_t i = 1; i < pMinNdfaImpl2->minNdfa.size(); i++) {
+        Automaton* source = pMinNdfaImpl2->minNdfa[i];
+        Automaton* copy = new Automaton(source->number);
+        copy->stateCount = source->stateCount;
+        copy->finalStates = source->finalStates;
+
+        for (size_t j = 0; j < source->transitions.size(); j++) {
+            AdjacencyList* sourceTransition = source->transitions[j];
+            AdjacencyList* copyTransition = nullptr;
+            AdjacencyList* current = nullptr;
+            
+            while (sourceTransition) {
+                AdjacencyList* newTransition = nullptr;
+                
+                if (std::holds_alternative<std::pair<char, int>>(sourceTransition->transition)) {
+                    auto [symbol, state] = std::get<std::pair<char, int>>(sourceTransition->transition);
+                    newTransition = new AdjacencyList(symbol, state);
+                } 
+                else {
+                    auto [group, state] = std::get<std::pair<int, int>>(sourceTransition->transition);
+                    newTransition = new AdjacencyList(group, state);
+                }
+                if (!copyTransition) {
+                    copyTransition = newTransition;
+                    current = copyTransition;
+                } 
+                else {
+                    current->next = newTransition;
+                    current = current->next;
+                }
+                sourceTransition = sourceTransition->next;
+            }
+            copy->transitions.push_back(copyTransition);
+        }
+        minNdfaVector.push_back(copy);
+    }
+    this->pMinNdfaImpl = new MinNdfaImpl(minNdfaVector);
+
+    delete pMinNdfaImpl1;
+    delete pMinNdfaImpl2;
+
+    if (pOriginalImpl) 
+        delete pOriginalImpl;
+
+    return true;
 }

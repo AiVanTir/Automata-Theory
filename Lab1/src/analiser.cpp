@@ -80,11 +80,8 @@ void BenchmarkRecognizers(const std::string& outputFile) {
 
     // Шапка таблицы
     out << "StringLength SmcRecog(ms) FlexRecognizer(ms) RegexRecognizer(ms)\n";
-
     // Длины строк от 2^7 до 2^20
-    for (size_t len = 64; len <= 4096; len += 100) { // 2^7 = 128 ... 2^14 = 16384
-        size_t length = len;
-
+    for (size_t length = 64; length <= 6064; length += 100) { // 2^7 = 128 ... 2^14 = 16384
         std::vector<std::unique_ptr<IMyRecognizer>> recognizers;
         recognizers.emplace_back(std::make_unique<SmcRecog>());
         recognizers.emplace_back(std::make_unique<FlexRecognizer>());

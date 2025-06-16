@@ -23,8 +23,10 @@ class Regex {
         std::vector<RegexData> FindAll(std::string_view pattern, std::string_view stringToCheck);
 
         bool RecoverRegex(std::string& pattern);
-        void ComplementRegex();
-        void IntersectRegex(std::string_view pattern);
+        bool ComplementRegex();
+        bool ComplementRegex(std::string_view pattern);
+        bool IntersectRegex(std::string_view pattern);
+        bool IntersectRegex(std::string_view pattern1, std::string_view pattern2);
 
         void Print();
 };

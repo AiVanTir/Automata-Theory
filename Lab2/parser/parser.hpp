@@ -6,6 +6,8 @@
 class Parser {
     private:
         std::string pattern;
+        int position = 0;
+        int groupExprCount = 0;
 
         bool GetSymbol(char* symbol) {
             if (position == pattern.length())
@@ -49,7 +51,6 @@ class Parser {
         Node* ParseGroupRef();
 
     public:
-        int position = 0;
         Parser(std::string_view pattern) : pattern(pattern) {}
         Node* ParseExpr();
 };

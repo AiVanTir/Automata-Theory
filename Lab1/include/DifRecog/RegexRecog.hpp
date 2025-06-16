@@ -5,12 +5,16 @@
 #include "DifRecog/IMyRecognizer.hpp"
 
 class RegexRecognizer : public IMyRecognizer {
+    const std::regex pattern_;
 public:
-    bool CheckString(const std::string& input, std::vector<std::string>& AllNames, std::vector<std::string>& Freaks) override {
-        std::regex pattern(R"(^(int|short|long)\s([a-zA-Z][a-zA-Z0-9]{0,15})\[([1-9][0-9]{0,8})\]\=\{(-?[0-9]+(?:,-?[0-9]+)*)?\}$)");
+    RegexRecognizer() : pattern_(
+            R"(^(int|short|long)\s+([a-zA-Z][a-zA-Z0-9]{0,15})\[(?:[1-9][0-9]{0,8})\]=\{(-?\d+(?:,-?\d+)*)?\}$)",
+            std::regex::optimize
+    ) {}
 
+    bool CheckString(const std::string& input, std::vector<std::string>& AllNames, std::vector<std::string>& Freaks) override {
         std::smatch matches;
-        if (!std::regex_match(input, matches, pattern)) {
+        if (!std::regex_match(input, matches, pattern_)) {
             return false;
         }
 

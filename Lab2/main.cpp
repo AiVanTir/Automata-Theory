@@ -16,9 +16,12 @@ int main() {
               << "3.Match with compile\n"
               << "4.Findall without compile\n"
               << "5.Findall with compile\n"
-              << "6.Complement regex\n"
-              << "7.Print DFA\n"
-              << "8.Print menu\n";
+              << "6.Complement without compile\n"
+              << "7.Complement with compile\n"
+              << "8.Intersect without compile\n"
+              << "9.Intersect with compile\n"
+              << "10.Print DFA\n"
+              << "11.Print menu\n";
 
     for (;;) {
         std::cout << ">";
@@ -55,7 +58,7 @@ int main() {
 
                 if (regex.Match(stringToCheck, data)) {
                     std::cout << "match (" << data.GetMatchedString() << ")\n";
-                    std::cout << "Named groups:\n";
+                    std::cout << "numered groups:\n";
                     
                     for (const auto pair: data)
                         std::cout << pair.first << " (" << pair.second << ")\n";
@@ -74,7 +77,7 @@ int main() {
 
                 if (regex.Match(string, stringToCheck, data)) {
                     std::cout << "match (" << data.GetMatchedString() << ")\n";
-                    std::cout << "Named groups:\n";
+                    std::cout << "numered groups:\n";
 
                     for (const auto pair: data)
                         std::cout << pair.first << " (" << pair.second << ")\n";
@@ -92,7 +95,7 @@ int main() {
 
                 for (RegexData findAllData : ndata) {
                     std::cout << "match (" << findAllData.GetMatchedString() << ")\n";
-                    std::cout << "named groups:\n";
+                    std::cout << "numered groups:\n";
 
                     for (const auto pair: findAllData)
                         std::cout << pair.first << " (" << pair.second << ")\n";
@@ -113,7 +116,7 @@ int main() {
 
                 for (RegexData findAllData : ndata) {
                     std::cout << "match (" << findAllData.GetMatchedString() << ")\n";
-                    std::cout << "named groups:\n";
+                    std::cout << "numered groups:\n";
 
                     for (const auto pair: findAllData)
                         std::cout << pair.first << " (" << pair.second << ")\n";
@@ -124,15 +127,45 @@ int main() {
                 break;
             }
             case 6:
-                regex.ComplementRegex();
-                std::cout << "Successful complement\n";
+                if (regex.ComplementRegex())
+                    std::cout << "Successful complement\n";
                 break;
 
             case 7:
+                std::cout << "Enter a regular expression:\n>";
+                std::getline(std::cin, string);
+                
+                if (regex.ComplementRegex(string))
+                    std::cout << "Successful complement\n";
+
+                break;
+
+            case 8: {
+                std::cout << "Enter regular expression:\n>";
+                std::getline(std::cin, string);
+                
+                if (regex.IntersectRegex(string))
+                    std::cout << "Successful intersect\n";
+
+                break;
+            }
+            case 9: {
+                std::cout << "Enter first regular expression:\n>";
+                std::getline(std::cin, string);
+                std::string second;
+                std::cout << "Enter second regular expression:\n>";
+                std::getline(std::cin, second);
+                
+                if (regex.IntersectRegex(string, second))
+                    std::cout << "Successful intersect\n";
+
+                break;
+            }
+            case 10:
                 regex.Print();
                 break;
 
-            case 8:
+            case 11:
                 std::cout << "Menu:\n"
                           << "0.Exit\n"
                           << "1.Compile\n"
@@ -140,9 +173,12 @@ int main() {
                           << "3.Match with compile\n"
                           << "4.Findall without compile\n"
                           << "5.Findall with compile\n"
-                          << "6.Complement regex\n"
-                          << "7.Print DFA\n"
-                          << "8.Print menu\n";
+                          << "6.Complement without compile\n"
+                          << "7.Complement with compile\n"
+                          << "8.Intersect without compile\n"
+                          << "9.Intersect with compile\n"
+                          << "10.Print DFA\n"
+                          << "11.Print menu\n";
                 break;
 
             default:

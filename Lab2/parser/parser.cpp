@@ -10,8 +10,6 @@ Node* Parser::ParseGroupRef() {
     long long result = 0;
     bool isNumber = false;
     int number;
-
-    /* пытаемся распарсить наибольшее число */
     while (position < pattern.size() && isdigit(pattern[position])) {
         isNumber = true;
         number = pattern[position] - '0';
@@ -74,6 +72,7 @@ Node* Parser::ParseGroupedExpr() {
     if (MatchAndConsume(')')) 
         return new Node(NodeType::SYMBOL, '\0');
 
+    groupExprCount++;
     Node* newNode = ParseExpr();
     
     if (!MatchAndConsume(')') || newNode == nullptr) {
@@ -117,6 +116,7 @@ Node* Parser::ParseGroup() {
     }
     groupNumber = static_cast<int>(result);
     int tmpPosition = position;
+    groupExprCount++;
     Node* newNode = ParseExpr();
 
     if (!MatchAndConsume(')') || newNode == nullptr) {
@@ -150,7 +150,7 @@ Node* Parser::ParseAtom() {
 Node* Parser::ParseRepeat() {
     int oldPosition = position;
     Node* newNode = ParseAtom();
-    Node* nodeToReturn;
+    Node* nodeToReturn = nullptr;
 
     if (newNode == nullptr)
         return nullptr;
@@ -196,15 +196,12 @@ Node* Parser::ParseRepeat() {
             result = 0;
 
             string = ParseUntilSymbol('}');
-            
+
             if (!MatchAndConsume('}')) {
                 position = oldPosition;
                 delete nodeToReturn;
                 return nullptr;
             }
-            if (string.size() == 0) 
-                upperBound = INT_MAX;
-
             for (int i = 0; i < string.size(); ++i) {
                 if (!isdigit(string[i])) {
                     position = oldPosition;
@@ -220,6 +217,9 @@ Node* Parser::ParseRepeat() {
                 result = result * 10 + upperBound;
             }
             upperBound = static_cast<int>(result);
+
+            if (string.size() == 0) 
+                upperBound = INT_MAX;
 
             if (lowerBound > upperBound) {
                 position = oldPosition;
@@ -263,8 +263,17 @@ Node* Parser::ParseConcat() {
             childrens.push_back(nextNode);
             continue;
         }
-        if (Match(')'))
+        if (Match(')')) {
+            if (groupExprCount == 0) {
+                for (auto children : childrens)
+                    delete children;
+
+                position = oldPosition;
+                return nullptr;
+            }
+            groupExprCount--;
             break;
+        }
         nextNode = ParseRepeat();
 
         if (nextNode == nullptr) {

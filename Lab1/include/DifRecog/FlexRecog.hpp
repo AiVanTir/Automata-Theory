@@ -25,7 +25,7 @@ enum Token {
 extern std::vector<Token> tokens;
 
 extern "C" {
-    int yylex();
+int yylex();
 }
 
 yy_buffer_state* yy_scan_string(const char* str);
@@ -39,7 +39,7 @@ public:
 
         yy_scan_string(input.c_str());
         yylex();
-        
+
         if (tokens.empty()) {
             return false;
         }
@@ -49,7 +49,7 @@ public:
         }
 
         arrayType = (tokens[0] == TYPE_INT) ? "int" :
-                   (tokens[0] == TYPE_SHORT) ? "short" : "long";
+                    (tokens[0] == TYPE_SHORT) ? "short" : "long";
 
         if (tokens.size() < 2 || tokens[1] != IDENTIFIER) {
             return false;

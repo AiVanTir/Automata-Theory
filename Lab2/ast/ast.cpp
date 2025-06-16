@@ -16,6 +16,7 @@ bool Ast::CollectNumbers(std::vector<int>& groupNumbers, std::vector<int>& group
 
         int groupRefNumber = std::get<int>(node->data);
         groupRefNumbers.push_back(groupRefNumber);
+
         return std::find(groupNumbers.begin(), groupNumbers.end(), groupRefNumber) != groupNumbers.end();
     }
     return true;
@@ -24,8 +25,10 @@ bool Ast::CollectNumbers(std::vector<int>& groupNumbers, std::vector<int>& group
 bool Ast::Prepare() {
     if (root == nullptr) 
         return true;
+
     std::vector<int> groupNumbers;
     std::vector<int> groupRefNumbers;
+
     if (!CollectNumbers(groupNumbers, groupRefNumbers, root)) 
         return false;  
 
