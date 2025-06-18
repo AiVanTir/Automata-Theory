@@ -1,5 +1,3 @@
-/* interp.c */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,22 +5,17 @@
 
 #include "context.h"
 #include "ast.h"
-#include "maze.h"     /* <— добавлено, чтобы видеть все прототипы maze_* */
+#include "maze.h"
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/* Прототипы функций, чтобы не было implicit-declaration                      */
-/* ────────────────────────────────────────────────────────────────────────── */
+#define IDX(mz, q, r)  ((r) * (mz)->width + (q))
 
-/* eval_expr может вызывать exec_list внутри (например, при вызове функции) */
+static const int hex_dq[6] = { +1,  0, -1, -1,  0, +1 };
+static const int hex_dr[6] = {  0, +1, +1,  0, -1, -1 };
+
 static Value eval_expr(Context *ctx, AST *e);
 
-/* exec_list может вызываться внутри eval_expr (при выполнении AST_FUNC_CALL) */
 static void exec_list(Context *ctx, AST *p);
 
-
-/* ────────────────────────────────────────────────────────────────────────── */
-/* 1) Реализация «Value‐функций» ↔ Value constructors                           */
-/* ────────────────────────────────────────────────────────────────────────── */
 Value val_int(long long x) {
     Value v;
     v.kind = V_INT;
@@ -55,16 +48,13 @@ Value val_undef(void) {
     return v;
 }
 
-
-/* ────────────────────────────────────────────────────────────────────────── */
-/* 2) Работа с переменными (Var как динамический массив Value)                  */
-/* ────────────────────────────────────────────────────────────────────────── */
 static Var *find_var(Context *ctx, const char *name) {
-    for (Var *vv = ctx->vars; vv != NULL; vv = vv->next) {
-        if (strcmp(vv->name, name) == 0) {
-            printf("[DEBUG] Variable '%s' found.\n", name);
-            return vv;
-        }
+    Var *v = ctx->vars;
+    while (v)
+    {
+        if (strcmp(v->name, name) == 0)
+            return v;
+        v = v->next;
     }
     printf("[DEBUG] Variable '%s' not found.\n", name);
     return NULL;
@@ -82,10 +72,10 @@ static void ensure_capacity(Var *v, int newcap) {
 void set_var(Context *ctx, const char *name, AST *idx, Value val) {
     Var *v = find_var(ctx, name);
     if (!v) {
-        v = (Var *) malloc(sizeof(Var));
+        v = malloc(sizeof(Var));
         v->name = strdup(name);
-        v->cap = 0;
-        v->arr = NULL;
+        v->cap  = 0;
+        v->arr  = NULL;
         v->next = ctx->vars;
         ctx->vars = v;
         printf("[DEBUG] Created variable '%s'.\n", name);
@@ -94,12 +84,12 @@ void set_var(Context *ctx, const char *name, AST *idx, Value val) {
         Value iv = eval_expr(ctx, idx);
         if (iv.kind != V_INT) {
             printf("[DEBUG] Attempt to index variable '%s' with non-integer.\n", name);
-            return; /* Индекс не целое → ничего не делаем */
+            return;
         }
         int i = (int) iv.i;
         if (i < 0) {
             printf("[DEBUG] Attempt to index variable '%s' with negative index %d.\n", name, i);
-            return; /* Отрицательный индекс → игнор */
+            return;
         }
         ensure_capacity(v, i + 1);
         v->arr[i] = val;
@@ -153,49 +143,39 @@ Value get_var(Context *ctx, const char *name, AST *idx) {
         printf("[DEBUG] Access to undefined variable '%s'.\n", name);
         return val_undef();
     }
-    if (idx != NULL) {
-        Value iv = eval_expr(ctx, idx);
-        if (iv.kind != V_INT) {
-            printf("[DEBUG] Attempt to index variable '%s' with non-integer.\n", name);
-            return val_undef();
-        }
-        int i = (int) iv.i;
-        if (i < 0 || i >= v->cap) {
-            printf("[DEBUG] Index %d out of bounds for variable '%s'.\n", i, name);
-            return val_undef();
-        }
-        Value result = v->arr[i];
-        if (result.kind == V_INT) {
-            printf("[DEBUG] Accessed variable '%s'[%d] = %lld.\n", name, i, (long long)result.i);
-        } else if (result.kind == V_BOOL) {
-            printf("[DEBUG] Accessed variable '%s'[%d] = %s.\n", name, i, result.b ? "TRUE" : "FALSE");
-        } else if (result.kind == V_INF) {
-            printf("[DEBUG] Accessed variable '%s'[%d] = INF.\n", name, i);
-        } else if (result.kind == V_NAN) {
-            printf("[DEBUG] Accessed variable '%s'[%d] = NAN.\n", name, i);
-        } else {
-            printf("[DEBUG] Accessed variable '%s'[%d] = UNDEF.\n", name, i);
-        }
-        return result;
-    } else {
-        if (v->cap == 0) {
-            printf("[DEBUG] Accessed variable '%s', but it is UNDEF (no capacity).\n", name);
-            return val_undef();
-        }
-        Value result = v->arr[0];
-        if (result.kind == V_INT) {
-            printf("[DEBUG] Accessed variable '%s' = %lld.\n", name, (long long)result.i);
-        } else if (result.kind == V_BOOL) {
-            printf("[DEBUG] Accessed variable '%s' = %s.\n", name, result.b ? "TRUE" : "FALSE");
-        } else if (result.kind == V_INF) {
-            printf("[DEBUG] Accessed variable '%s' = INF.\n", name);
-        } else if (result.kind == V_NAN) {
-            printf("[DEBUG] Accessed variable '%s' = NAN.\n", name);
-        } else {
-            printf("[DEBUG] Accessed variable '%s' = UNDEF.\n", name);
-        }
-        return result;
+    if (idx == NULL) {
+       printf("[DEBUG] get_var: scalar\n");
+       return v->arr[0];
     }
+
+    Value iv = eval_expr(ctx, idx);
+    if (iv.kind != V_INT) {
+        fprintf(stderr, "Error: non-integer index for '%s'\n", name);
+        return val_undef();
+    }
+    long i = iv.i;
+    if (i < 0 || i >= v->cap) {
+        fprintf(stderr, "Error: index %ld out of bounds for '%s'\n", i, name);
+        return val_undef();
+    }
+    Value vv = v->arr[i];
+    if (vv.kind == V_INT) {
+        printf("[DEBUG] get_var: arr '%s'[%ld] = %lld.\n",
+               name, i, (long long)vv.i);
+    } else if (vv.kind == V_BOOL) {
+        printf("[DEBUG] get_var: arr '%s'[%ld] = %s.\n",
+               name, i, vv.b ? "TRUE" : "FALSE");
+    } else if (vv.kind == V_INF) {
+        printf("[DEBUG] get_var: arr '%s'[%ld] = INF.\n",
+               name, i);
+    } else if (vv.kind == V_NAN) {
+        printf("[DEBUG] get_var: arr '%s'[%ld] = NAN.\n",
+               name, i);
+    } else {
+        printf("[DEBUG] get_var: arr '%s'[%ld] = UNDEF.\n",
+               name, i);
+    }
+    return vv;
 }
 
 static Value eval_sumarr(Context *ctx, const char *name) {
@@ -230,22 +210,15 @@ static Value eval_sumarr(Context *ctx, const char *name) {
     return val_int(acc);
 }
 
-
-/* ────────────────────────────────────────────────────────────────────────── */
-/* 3) make_binop — арифметические/логические операции                          */
-/* ────────────────────────────────────────────────────────────────────────── */
 static Value make_binop(Value L, Value R, char op) {
-    /* Любая NAN → NAN */
     if (L.kind == V_NAN || R.kind == V_NAN) {
         printf("[DEBUG] make_binop: one operand is NAN, returning NAN.\n");
         return val_nan();
     }
-    /* Любая UNDEF → UNDEF */
     if (L.kind == V_UNDEF || R.kind == V_UNDEF) {
         printf("[DEBUG] make_binop: one operand is UNDEF, returning UNDEF.\n");
         return val_undef();
     }
-    /* Оба типа BOOL */
     if (L.kind == V_BOOL && R.kind == V_BOOL) {
         long long a = L.b ? 1LL : 0LL;
         long long b = R.b ? 1LL : 0LL;
@@ -269,13 +242,12 @@ static Value make_binop(Value L, Value R, char op) {
                        return val_undef();
         }
     }
-    /* INF */
     if (L.kind == V_INF || R.kind == V_INF) {
         if (L.kind == V_INF && R.kind == V_INF) {
             printf("[DEBUG] INF vs INF binop with op '%c'\n", op);
             switch (op) {
                 case '+': case '-': case '*': return val_inf();
-                case '/': return val_nan();  /* INF/INF → NAN */
+                case '/': return val_nan();
                 case '<': return val_bool(false);
                 case '>': return val_bool(false);
                 case '=': return val_bool(true);
@@ -332,7 +304,6 @@ static Value make_binop(Value L, Value R, char op) {
             }
         }
     }
-    /* Оба V_INT или один BOOL и один INT */
     long long a_val = 0, b_val = 0;
     if (L.kind == V_INT)           a_val = L.i;
     else if (L.kind == V_BOOL)     a_val = L.b ? 1LL : 0LL;
@@ -368,22 +339,34 @@ static Value make_binop(Value L, Value R, char op) {
     }
 }
 
-
-/* ────────────────────────────────────────────────────────────────────────── */
-/* 4) eval_expr — вычисление выражений AST → Value                            */
-/* ────────────────────────────────────────────────────────────────────────── */
 static Value eval_expr(Context *ctx, AST *e) {
     if (!e) {
         printf("[DEBUG] eval_expr: encountered NULL AST node, returning UNDEF.\n");
         return val_undef();
     }
     switch (e->kind) {
+        case AST_CELL: {
+        int c = e->d.cell_lit.cell;
+        Value v;
+        switch (c) {
+              case CELL_EMPTY: v = val_int(0);  break;
+              case CELL_WALL:  v = val_inf();   break;
+              case CELL_EXIT:  v = val_int(-1); /* или val_neg_inf() */ break;
+              case CELL_UNDEF: v = val_nan();   break;
+              case CELL_BOX:
+                v = val_int(1);
+                break;
+            }
+            printf("[DEBUG] eval_expr: cell literal");
+            return v;
+        }
         case AST_INT:
             printf("[DEBUG] eval_expr: integer literal %lld.\n", (long long)e->d.int_val);
             return val_int(e->d.int_val);
 
         case AST_BOOL:
-            printf("[DEBUG] eval_expr: boolean literal %s.\n", e->d.bool_val ? "TRUE" : "FALSE");
+            printf("[DEBUG] eval_expr: boolean literal %s.\n",
+                   e->d.bool_val ? "TRUE" : "FALSE");
             return val_bool(e->d.bool_val);
 
         case AST_INF:
@@ -399,45 +382,20 @@ static Value eval_expr(Context *ctx, AST *e) {
             return val_undef();
 
         case AST_VAR_REF: {
-            /* Встроенные константы (WALL=1, BOX=2, EXIT=3, TRUE/FALSE) */
-            if (strcmp(e->d.var_ref.name, "WALL") == 0 && e->d.var_ref.idx == NULL) {
-                printf("[DEBUG] eval_expr: literal WALL → 1.\n");
-                return val_int(1);
-            }
-            if (strcmp(e->d.var_ref.name, "BOX") == 0 && e->d.var_ref.idx == NULL) {
-                printf("[DEBUG] eval_expr: literal BOX → 2.\n");
-                return val_int(2);
-            }
-            if (strcmp(e->d.var_ref.name, "EXIT") == 0 && e->d.var_ref.idx == NULL) {
-                printf("[DEBUG] eval_expr: literal EXIT → 3.\n");
-                return val_int(3);
-            }
-            if (strcmp(e->d.var_ref.name, "TRUE") == 0 && e->d.var_ref.idx == NULL) {
-                printf("[DEBUG] eval_expr: literal TRUE.\n");
-                return val_bool(true);
-            }
-            if (strcmp(e->d.var_ref.name, "FALSE") == 0 && e->d.var_ref.idx == NULL) {
-                printf("[DEBUG] eval_expr: literal FALSE.\n");
-                return val_bool(false);
-            }
-            /* Если индекс: var[idx], иначе — сумма массива (#var) */
-            if (e->d.var_ref.idx) {
-                printf("[DEBUG] eval_expr: variable reference '%s'[%s].\n",
-                       e->d.var_ref.name,
-                       (e->d.var_ref.idx->kind == AST_INT ?
-                            ({ char buf[64]; sprintf(buf, "%lld", (long long)e->d.var_ref.idx->d.int_val); strdup(buf); })
-                         : "[expr]")
-                );
-                return get_var(ctx, e->d.var_ref.name, e->d.var_ref.idx);
-            } else {
-                printf("[DEBUG] eval_expr: sum array variable '#%s'.\n", e->d.var_ref.name);
-                return eval_sumarr(ctx, e->d.var_ref.name);
-            }
+            printf("[DEBUG] eval_expr: var '%s'.\n", e->d.var_ref.name);
+            return get_var(ctx, e->d.var_ref.name, NULL);
         }
 
-        case AST_SUMARR:
-            printf("[DEBUG] eval_expr: SUMARR '%s'.\n", e->d.sumarr_name);
+        case AST_ARR_REF: {
+            printf("[DEBUG] eval_expr: arr '%s'[%p].\n",
+                   e->d.var_ref.name, (void*)e->d.var_ref.idx);
+            return get_var(ctx, e->d.var_ref.name, e->d.var_ref.idx);
+        }
+
+        case AST_SUMARR: {
+            printf("[DEBUG] eval_expr: sumarr '#%s'.\n", e->d.sumarr_name);
             return eval_sumarr(ctx, e->d.sumarr_name);
+        }
 
         case AST_BINOP: {
             printf("[DEBUG] eval_expr: BINOP '%c'.\n", e->d.binop.op);
@@ -449,15 +407,10 @@ static Value eval_expr(Context *ctx, AST *e) {
         case AST_UNOP: {
             printf("[DEBUG] eval_expr: UNOP '-'.\n");
             Value X = eval_expr(ctx, e->d.unop.operand);
-            if (X.kind == V_INT) {
-                return val_int(-X.i);
-            } else if (X.kind == V_INF) {
-                return val_inf();
-            } else if (X.kind == V_NAN) {
-                return val_nan();
-            } else {
-                return val_undef();
-            }
+            if (X.kind == V_INT)  return val_int(-X.i);
+            if (X.kind == V_INF)  return val_inf();
+            if (X.kind == V_NAN)  return val_nan();
+            return val_undef();
         }
 
         case AST_FUNC_CALL: {
@@ -471,7 +424,6 @@ static Value eval_expr(Context *ctx, AST *e) {
                 printf("[DEBUG] eval_expr: function '%s' not found, returning UNDEF.\n", e->d.func_call.fname);
                 return val_undef();
             }
-            /* Сохраняем старое состояние returning и ret_value */
             bool old_ret = ctx->returning;
             Value old_val = ctx->ret_value;
 
@@ -513,13 +465,19 @@ static Value eval_expr(Context *ctx, AST *e) {
         case AST_TEST: {
             bool isWall = test_obstacle(ctx);
             printf("[DEBUG] eval_expr: TEST → %d.\n", isWall ? 1 : 0);
-            return val_int(isWall ? 1 : 0);
+            return val_int(isWall ? 0 : 1);
         }
 
         case AST_LOOK: {
-            int dist = look_distance(ctx);
-            printf("[DEBUG] eval_expr: LOOK → %d.\n", dist);
-            return val_int(dist);
+              int dir = ctx->dir % 6;
+              int nq  = ctx->q + hex_dq[dir];
+              int nr  = ctx->r + hex_dr[dir];
+              bool exitAhead = false;
+              if (nq >= 0 && nq < ctx->mz->width && nr >= 0 && nr < ctx->mz->height) {
+                  exitAhead = (ctx->mz->cells[ IDX(ctx->mz, nq, nr) ] == CELL_EXIT);
+              }
+              printf("[DEBUG] eval_expr: LOOK → %d.\n", exitAhead ? 1 : 0);
+              return val_int(exitAhead ? 1 : 0);
         }
 
         default:
@@ -528,21 +486,22 @@ static Value eval_expr(Context *ctx, AST *e) {
     }
 }
 
-
-/* ────────────────────────────────────────────────────────────────────────── */
-/* 5) exec_list — выполнение списка AST-операторов                            */
-/* ────────────────────────────────────────────────────────────────────────── */
 static void exec_list(Context *ctx, AST *p) {
-    while (p) {
-        /* Если предыдущий RETURN уже поднял returning, прерываем */
+    while (p)
+    {
         if (ctx->returning) {
             printf("[DEBUG] exec_list: returning is true, breaking.\n");
             return;
         }
 
         switch (p->kind) {
-            /* ────────────────────────────────────────────────────────── */
-            /* «continue» как bare-идентификатор → досрочно выйти       */
+            case AST_CONTINUE:
+                printf("[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.\n");
+                return;
+            case AST_BREAK:
+                printf("[DEBUG] exec_list: encountered 'break', breaking out of loop.\n");
+                ctx->returning = true;
+                return;
             case AST_VAR_REF:
                 if (p->d.var_ref.idx == NULL && strcmp(p->d.var_ref.name, "continue") == 0) {
                     printf("[DEBUG] exec_list: encountered 'continue', returning from exec_list.\n");
@@ -605,8 +564,6 @@ static void exec_list(Context *ctx, AST *p) {
                         printf("[DEBUG] exec_list: returning is true after WHILE body, breaking.\n");
                         return;
                     }
-                    /* Если внутри тела был «continue», exec_list уже вернулась досрочно,
-                       и мы придём сюда, проверим условие заново и продолжим. */
                 }
                 printf("[DEBUG] exec_list: exiting WHILE loop.\n");
                 break;
@@ -671,16 +628,16 @@ static void exec_list(Context *ctx, AST *p) {
             }
 
             case AST_LEFT: {
-                printf("[DEBUG] exec_list: LEFT operator.\n");
+                printf("[DEBUG] exec_list: LEFT operator.\n%d %d %d\n", ctx->q, ctx->r, ctx->dir);
                 maze_turn(ctx, -1);
-                printf("LEFT\n");
+                printf("LEFT, %d %d %d\n", ctx->q, ctx->r, ctx->dir);
                 break;
             }
 
             case AST_RIGHT: {
                 printf("[DEBUG] exec_list: RIGHT operator.\n");
                 maze_turn(ctx, +1);
-                printf("RIGHT\n");
+                printf("RIGHT %d %d %d\n", ctx->q, ctx->r, ctx->dir);
                 break;
             }
 
@@ -709,21 +666,14 @@ static void exec_list(Context *ctx, AST *p) {
             }
 
             default:
-                /* Любой другой узел (например, AST_NOP или неизвестный) — пропускаем */
                 printf("[DEBUG] exec_list: unknown AST kind %d, skipping.\n", p->kind);
                 break;
         }
 
-        /* Переходим к следующему оператору в списке */
         p = p->next;
     }
 }
 
-
-/* ────────────────────────────────────────────────────────────────────────── */
-/* 6) Точка входа интерпретатора                                                */
-/*    main.c должен вызвать parse() → AST* prog, затем interp_execute(prog, maze_file) */
-/* ────────────────────────────────────────────────────────────────────────── */
 void interp_execute(AST *prog, const char *maze_file) {
     Context ctx;
     ctx.vars = NULL;
@@ -731,7 +681,13 @@ void interp_execute(AST *prog, const char *maze_file) {
     ctx.returning = false;
     ctx.ret_value = val_undef();
     ctx.carried_weight = 0;
-
+    
+    if (prog && prog->kind == AST_DECL) {
+        for (int i = 0; i < prog->d.decl.count; i++) {
+            set_var(&ctx, prog->d.decl.names[i], NULL, val_undef());
+        }
+        prog = prog->next;
+    }
     printf("[DEBUG] Loading maze from '%s'.\n", maze_file);
     ctx.mz = maze_load(maze_file, &ctx);
     if (!ctx.mz) {
@@ -743,6 +699,11 @@ void interp_execute(AST *prog, const char *maze_file) {
     printf("[DEBUG] Starting execution of AST.\n");
     exec_list(&ctx, prog);
     printf("[DEBUG] Finished execution of AST.\n");
+    
+    if (!is_at_exit(&ctx) && look_distance(&ctx) > 0) {
+        printf("[DEBUG] Final move: stepping into EXIT.\n");
+        maze_move(&ctx, 1);
+    }
 
     bool atExit = is_at_exit(&ctx);
     if (atExit) {
@@ -755,4 +716,3 @@ void interp_execute(AST *prog, const char *maze_file) {
     maze_free(ctx.mz);
     printf("[DEBUG] Maze resources freed.\n");
 }
-

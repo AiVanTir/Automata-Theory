@@ -52,4 +52,3 @@ Value val_nan(void);
 Value val_undef(void);
 
 #endif
-

@@ -1,0 +1,122 @@
+[DEBUG] Variable 'a' not found.
+[DEBUG] Created variable 'a'.
+[DEBUG] Initialized variable 'a' = UNDEF.
+[DEBUG] Variable 'b' not found.
+[DEBUG] Created variable 'b'.
+[DEBUG] Initialized variable 'b' = UNDEF.
+[DEBUG] Variable 'sumArr' not found.
+[DEBUG] Created variable 'sumArr'.
+[DEBUG] Initialized variable 'sumArr' = UNDEF.
+[DEBUG] Variable 'hexVal' not found.
+[DEBUG] Created variable 'hexVal'.
+[DEBUG] Initialized variable 'hexVal' = UNDEF.
+[DEBUG] Variable 'infVal' not found.
+[DEBUG] Created variable 'infVal'.
+[DEBUG] Initialized variable 'infVal' = UNDEF.
+[DEBUG] Variable 'nanVal' not found.
+[DEBUG] Created variable 'nanVal'.
+[DEBUG] Initialized variable 'nanVal' = UNDEF.
+[DEBUG] Variable 'flag' not found.
+[DEBUG] Created variable 'flag'.
+[DEBUG] Initialized variable 'flag' = UNDEF.
+[DEBUG] Variable 'xorn' not found.
+[DEBUG] Created variable 'xorn'.
+[DEBUG] Initialized variable 'xorn' = UNDEF.
+[DEBUG] Variable 'c' not found.
+[DEBUG] Created variable 'c'.
+[DEBUG] Initialized variable 'c' = UNDEF.
+[DEBUG] Variable 'dist' not found.
+[DEBUG] Created variable 'dist'.
+[DEBUG] Initialized variable 'dist' = UNDEF.
+[DEBUG] Variable 'obs' not found.
+[DEBUG] Created variable 'obs'.
+[DEBUG] Initialized variable 'obs' = UNDEF.
+[DEBUG] Loading maze from 'maze.txt'.
+[DEBUG] Maze loaded successfully. Start at (q=0, r=0), dir=1.
+[DEBUG] Starting execution of AST.
+[DEBUG] exec_list: ASSIGN to 'a'.
+[DEBUG] eval_expr: integer literal 10.
+[DEBUG] Updated variable 'a' = 10.
+[DEBUG] exec_list: ASSIGN to 'b'.
+[DEBUG] eval_expr: integer literal 5.
+[DEBUG] eval_expr: integer literal 0.
+[DEBUG] Set variable 'b'[0] = 5.
+[DEBUG] exec_list: ASSIGN to 'b'.
+[DEBUG] eval_expr: integer literal 15.
+[DEBUG] eval_expr: integer literal 1.
+[DEBUG] Set variable 'b'[1] = 15.
+[DEBUG] exec_list: ASSIGN to 'sumArr'.
+[DEBUG] eval_expr: sumarr '#b'.
+[DEBUG] Summed array variable 'b' = 20.
+[DEBUG] Updated variable 'sumArr' = 20.
+[DEBUG] exec_list: ASSIGN to 'hexVal'.
+[DEBUG] eval_expr: integer literal 26.
+[DEBUG] Updated variable 'hexVal' = 26.
+[DEBUG] exec_list: ASSIGN to 'infVal'.
+[DEBUG] eval_expr: INF literal.
+[DEBUG] Updated variable 'infVal' = INF.
+[DEBUG] exec_list: ASSIGN to 'nanVal'.
+[DEBUG] eval_expr: NAN literal.
+[DEBUG] Updated variable 'nanVal' = NAN.
+[DEBUG] exec_list: ASSIGN to 'flag'.
+[DEBUG] eval_expr: boolean literal TRUE.
+[DEBUG] Updated variable 'flag' = TRUE.
+[DEBUG] exec_list: ASSIGN to 'xorn'.
+[DEBUG] eval_expr: BINOP '^'.
+[DEBUG] eval_expr: boolean literal TRUE.
+[DEBUG] eval_expr: boolean literal FALSE.
+[DEBUG] Bool binop: 1 XOR 0 = TRUE
+[DEBUG] Updated variable 'xorn' = TRUE.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: BINOP '>'.
+[DEBUG] eval_expr: var 'a'.
+[DEBUG] get_var: scalar
+[DEBUG] eval_expr: arr 'b'[0x4a8c250].
+[DEBUG] eval_expr: integer literal 0.
+[DEBUG] get_var: arr 'b'[0] = 5.
+[DEBUG] Int binop: 10 > 5 = TRUE
+[DEBUG] exec_list: IF condition evaluated to TRUE.
+[DEBUG] exec_list: ASSIGN to 'a'.
+[DEBUG] eval_expr: BINOP '-'.
+[DEBUG] eval_expr: var 'a'.
+[DEBUG] get_var: scalar
+[DEBUG] eval_expr: arr 'b'[0x4a8c5e0].
+[DEBUG] eval_expr: integer literal 0.
+[DEBUG] get_var: arr 'b'[0] = 5.
+[DEBUG] Int binop: 10 - 5 = 5
+[DEBUG] Updated variable 'a' = 5.
+[DEBUG] exec_list: ASSIGN to 'b'.
+[DEBUG] eval_expr: calling function 'inc'.
+[DEBUG] eval_expr: function 'inc' not found, returning UNDEF.
+[DEBUG] eval_expr: integer literal 2.
+[DEBUG] Set variable 'b'[2] = UNDEF.
+[DEBUG] exec_list: ASSIGN to 'dist'.
+[DEBUG] eval_expr: LOOK → 0.
+[DEBUG] Updated variable 'dist' = 0.
+[DEBUG] exec_list: ASSIGN to 'obs'.
+Test: 0 0 0 1
+[DEBUG] eval_expr: TEST → 0.
+[DEBUG] Updated variable 'obs' = 1.
+[DEBUG] exec_list: FORWARD operator.
+[DEBUG] eval_expr: integer literal 2.
+FORWARD 2 -> true
+[DEBUG] exec_list: LEFT operator.
+0 2 1
+LEFT, 0 2 0
+[DEBUG] exec_list: BACKWARD operator.
+[DEBUG] eval_expr: integer literal 1.
+BACKWARD 1 -> false
+[DEBUG] exec_list: RIGHT operator.
+RIGHT 0 2 1
+[DEBUG] exec_list: LOAD operator.
+[DEBUG] eval_expr: integer literal 5.
+LOAD 5 -> false
+[DEBUG] exec_list: DROP operator.
+[DEBUG] eval_expr: integer literal 5.
+DROP 5 -> false
+[DEBUG] Finished execution of AST.
+[DEBUG] Final move: stepping into EXIT.
+Robot did NOT reach EXIT, ended at (q=0, r=3), dir=1
+[DEBUG] Freeing maze resources.
+[DEBUG] Maze resources freed.
+

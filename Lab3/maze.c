@@ -10,10 +10,9 @@
 /*  dir=3 → (dq=−1, dr= 0) — влево                                       */
 /*  dir=4 → (dq= 0, dr=−1) — «вверх-влево»                                */
 /*  dir=5 → (dq=+1, dr=−1) — «вверх-вправо»                               */
-static const int hex_dq[6] = { +1,  0, -1, -1,  0, +1 };
-static const int hex_dr[6] = {  0, +1, +1,  0, -1, -1 };
+const int hex_dq[6] = { +1,  0, -1, -1,  0, +1 };
+const int hex_dr[6] = {  0, +1, +1,  0, -1, -1 };
 
-/* Макрос для вычисления индекса в cells[] */
 #define IDX(mz, q, r)  ((r) * (mz)->width + (q))
 
 static bool is_wall_or_oob_hex(const Maze *mz, int nq, int nr) {
@@ -23,7 +22,6 @@ static bool is_wall_or_oob_hex(const Maze *mz, int nq, int nr) {
     return (mz->cells[ IDX(mz, nq, nr) ] == CELL_WALL);
 }
 
-/* смотрит «впереди» (ctx->dir) 1 клетку и проверяет WALL/оob   */
 bool test_obstacle(const Context *ctx) {
     const Maze *mz = ctx->mz;
     int q   = ctx->q;
@@ -31,11 +29,10 @@ bool test_obstacle(const Context *ctx) {
     int dir = ctx->dir % 6;
     int nq = q + hex_dq[dir];
     int nr = r + hex_dr[dir];
+    printf("Test: %d %d %d %d\n", q, r, nq, nr);
     return is_wall_or_oob_hex(mz, nq, nr);
 }
 
-/* look_distance: считает, сколько подряд свободных клеток (не-WALL, не-oob)   */
-/*  от (q,r) до препятствия вдоль ctx->dir                                     */
 int look_distance(const Context *ctx) {
     const Maze *mz = ctx->mz;
     int q   = ctx->q;
@@ -55,7 +52,6 @@ int look_distance(const Context *ctx) {
     return dist;
 }
 
-/* перемещает робота на steps шестиугольников (шаг вперед или назад)*/
 bool maze_move(Context *ctx, int steps) {
     Maze *mz = ctx->mz;
     int dir = ctx->dir % 6;
@@ -82,14 +78,10 @@ bool maze_move(Context *ctx, int steps) {
     return true;
 }
 
-/* поворачивает робота на step60 шагов */
 void maze_turn(Context *ctx, int step60) {
     ctx->dir = (ctx->dir + step60 + 6) % 6;
 }
 
-/* поднимает коробку (CELL_BOX) в текущей клетке */
-/*  Если там действительно BOX, add weight к ctx->carried_weight,             */
-/*  превращает эту клетку в FLOOR и возвращает true; иначе false.            */
 bool maze_load_box(Context *ctx, int weight) {
     Maze *mz = ctx->mz;
     int q = ctx->q;
@@ -97,15 +89,12 @@ bool maze_load_box(Context *ctx, int weight) {
     CellType cell = mz->cells[ IDX(mz, q, r) ];
     if (cell == CELL_BOX) {
         ctx->carried_weight += weight;
-        mz->cells[ IDX(mz, q, r) ] = CELL_FLOOR;
+        mz->cells[ IDX(mz, q, r) ] = CELL_EMPTY;
         return true;
     }
     return false;
 }
 
-/* maze_drop_box: сбрасывает коробку весом weight в текущую клетку            */
-/*  Если у робота в руках есть хотя бы этот weight, уменьшает ctx->carried_weight, */
-/*  ставит в клетку CELL_BOX и возвращает true; иначе false.                  */
 bool maze_drop_box(Context *ctx, int weight) {
     Maze *mz = ctx->mz;
     int q = ctx->q;
@@ -118,7 +107,6 @@ bool maze_drop_box(Context *ctx, int weight) {
     return false;
 }
 
-/* проверяет, стоит ли робот на клетке EXIT */
 bool is_at_exit(const Context *ctx) {
     const Maze *mz = ctx->mz;
     int q = ctx->q;
@@ -129,7 +117,6 @@ bool is_at_exit(const Context *ctx) {
     return (mz->cells[ IDX(mz, q, r) ] == CELL_EXIT);
 }
 
-/* читает лабиринт из файла filename и инициализирует Context */
 Maze *maze_load(const char *filename, Context *ctx) {
     FILE *f = fopen(filename, "r");
     if (!f) {
@@ -179,24 +166,19 @@ Maze *maze_load(const char *filename, Context *ctx) {
                 if (strchr(token, ':') != NULL) {
                     mz->cells[ IDX(mz, q, r) ] = CELL_BOX;
                 } else {
-                    mz->cells[ IDX(mz, q, r) ] = CELL_FLOOR;
+                    mz->cells[ IDX(mz, q, r) ] = CELL_EMPTY;
                 }
             } else {
-                mz->cells[ IDX(mz, q, r) ] = CELL_FLOOR;
+                /* Всё остальное считаем FLOOR */
+                mz->cells[ IDX(mz, q, r) ] = CELL_EMPTY;
             }
         }
     }
     fclose(f);
-    ctx->q   = startCol - 1;        /* перевод 1-индексации в 0-индексацию */
-    ctx->r   = startRow - 1;
-    ctx->dir = startDir % 6;        /* шесть направлений */
 
-    /* Сбрасываем прочие поля Context */
-    ctx->carried_weight = 0;
-    ctx->vars = NULL;
-    ctx->funcs = NULL;
-    ctx->returning = false;
-    ctx->ret_value = val_undef();
+    ctx->q   = startCol - 1;
+    ctx->r   = startRow - 1;
+    ctx->dir = startDir % 6;
 
     return mz;
 }

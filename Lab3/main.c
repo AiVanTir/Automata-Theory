@@ -29,7 +29,6 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Parse error\n");
         return 1;
     }
-    /* получаем готовое AST в ast_root */
     interp_execute(ast_root, mz);
     ast_free(ast_root);
     return 0;

@@ -30,16 +30,26 @@ NEWLINE     \n
 "do"            { return DO; }
 "elif"          { return ELIF; }
 "else"          { return ELSE; }
+"elseif"        { return ELIF; }
 "done"          { return DONE; }
 
 "while"         { return WHILE; }
 "break"         { return BREAK; }
+"continue"      { return CONTINUE; }
 
 "function"      { return FUNCTION; }
 "return"        { return RETURN; }
 
-"look"          { return LOOK; }
-"test"          { return TEST; }
+"EMPTY"         { return EMPTY; }
+"WALL"          { return WALL; }
+"BOX"           { return BOX; }
+"EXIT"          { return EXIT; }
+"UNDEF"         { return UNDEF; }
+
+"LOOK"          { return LOOK; }
+"TEST"          { return TEST; }
+"see"           { return LOOK; }
+"see!"          { return TEST; }
 "forward"       { return FORWARD; }
 "backward"      { return BACKWARD; }
 "left"          { return LEFT; }
@@ -83,7 +93,7 @@ NEWLINE     \n
 ","             { return ','; }
 
 {NEWLINE}       { return NEWLINE; }
-{WS}            { }
+{WS}            { /* пропускаем пробелы */ }
 
 .               { return yytext[0]; }
 %%

@@ -1,0 +1,337 @@
+[DEBUG] Variable 'canGoLeft' not found.
+[DEBUG] Created variable 'canGoLeft'.
+[DEBUG] Initialized variable 'canGoLeft' = UNDEF.
+[DEBUG] Variable 'canGoForward' not found.
+[DEBUG] Created variable 'canGoForward'.
+[DEBUG] Initialized variable 'canGoForward' = UNDEF.
+[DEBUG] Variable 'canGoRight' not found.
+[DEBUG] Created variable 'canGoRight'.
+[DEBUG] Initialized variable 'canGoRight' = UNDEF.
+[DEBUG] Loading maze from 'maze.txt'.
+[DEBUG] Maze loaded successfully. Start at (q=0, r=0), dir=1.
+[DEBUG] Starting execution of AST.
+[DEBUG] exec_list: entering WHILE loop.
+[DEBUG] eval_expr: boolean literal TRUE.
+[DEBUG] exec_list: WHILE condition evaluated to TRUE.
+[DEBUG] exec_list: executing WHILE body.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: LOOK → 0.
+[DEBUG] exec_list: IF condition evaluated to FALSE.
+[DEBUG] exec_list: LEFT operator.
+0 0 1
+LEFT, 0 0 0
+[DEBUG] exec_list: ASSIGN to 'canGoLeft'.
+Test: 0 0 1 0
+[DEBUG] eval_expr: TEST → 0.
+[DEBUG] Updated variable 'canGoLeft' = 1.
+[DEBUG] exec_list: RIGHT operator.
+RIGHT 0 0 1
+[DEBUG] exec_list: ASSIGN to 'canGoForward'.
+Test: 0 0 0 1
+[DEBUG] eval_expr: TEST → 0.
+[DEBUG] Updated variable 'canGoForward' = 1.
+[DEBUG] exec_list: RIGHT operator.
+RIGHT 0 0 2
+[DEBUG] exec_list: ASSIGN to 'canGoRight'.
+Test: 0 0 -1 1
+[DEBUG] eval_expr: TEST → 1.
+[DEBUG] Updated variable 'canGoRight' = 0.
+[DEBUG] exec_list: LEFT operator.
+0 0 2
+LEFT, 0 0 1
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: var 'canGoLeft'.
+[DEBUG] get_var: scalar
+[DEBUG] exec_list: IF condition evaluated to TRUE.
+[DEBUG] exec_list: LEFT operator.
+0 0 1
+LEFT, 0 0 0
+[DEBUG] exec_list: FORWARD operator.
+[DEBUG] eval_expr: integer literal 1.
+FORWARD 1 -> true
+[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: var 'canGoForward'.
+[DEBUG] get_var: scalar
+[DEBUG] exec_list: IF condition evaluated to TRUE.
+[DEBUG] exec_list: FORWARD operator.
+[DEBUG] eval_expr: integer literal 1.
+FORWARD 1 -> true
+[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: var 'canGoRight'.
+[DEBUG] get_var: scalar
+[DEBUG] exec_list: IF condition evaluated to FALSE.
+[DEBUG] exec_list: LEFT operator.
+2 0 0
+LEFT, 2 0 5
+[DEBUG] exec_list: LEFT operator.
+2 0 5
+LEFT, 2 0 4
+[DEBUG] exec_list: FORWARD operator.
+[DEBUG] eval_expr: integer literal 1.
+FORWARD 1 -> false
+[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.
+[DEBUG] eval_expr: boolean literal TRUE.
+[DEBUG] exec_list: WHILE condition evaluated to TRUE.
+[DEBUG] exec_list: executing WHILE body.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: LOOK → 0.
+[DEBUG] exec_list: IF condition evaluated to FALSE.
+[DEBUG] exec_list: LEFT operator.
+2 0 4
+LEFT, 2 0 3
+[DEBUG] exec_list: ASSIGN to 'canGoLeft'.
+Test: 2 0 1 0
+[DEBUG] eval_expr: TEST → 0.
+[DEBUG] Updated variable 'canGoLeft' = 1.
+[DEBUG] exec_list: RIGHT operator.
+RIGHT 2 0 4
+[DEBUG] exec_list: ASSIGN to 'canGoForward'.
+Test: 2 0 2 -1
+[DEBUG] eval_expr: TEST → 1.
+[DEBUG] Updated variable 'canGoForward' = 0.
+[DEBUG] exec_list: RIGHT operator.
+RIGHT 2 0 5
+[DEBUG] exec_list: ASSIGN to 'canGoRight'.
+Test: 2 0 3 -1
+[DEBUG] eval_expr: TEST → 1.
+[DEBUG] Updated variable 'canGoRight' = 0.
+[DEBUG] exec_list: LEFT operator.
+2 0 5
+LEFT, 2 0 4
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: var 'canGoLeft'.
+[DEBUG] get_var: scalar
+[DEBUG] exec_list: IF condition evaluated to TRUE.
+[DEBUG] exec_list: LEFT operator.
+2 0 4
+LEFT, 2 0 3
+[DEBUG] exec_list: FORWARD operator.
+[DEBUG] eval_expr: integer literal 1.
+FORWARD 1 -> true
+[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: var 'canGoForward'.
+[DEBUG] get_var: scalar
+[DEBUG] exec_list: IF condition evaluated to FALSE.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: var 'canGoRight'.
+[DEBUG] get_var: scalar
+[DEBUG] exec_list: IF condition evaluated to FALSE.
+[DEBUG] exec_list: LEFT operator.
+1 0 3
+LEFT, 1 0 2
+[DEBUG] exec_list: LEFT operator.
+1 0 2
+LEFT, 1 0 1
+[DEBUG] exec_list: FORWARD operator.
+[DEBUG] eval_expr: integer literal 1.
+FORWARD 1 -> true
+[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.
+[DEBUG] eval_expr: boolean literal TRUE.
+[DEBUG] exec_list: WHILE condition evaluated to TRUE.
+[DEBUG] exec_list: executing WHILE body.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: LOOK → 0.
+[DEBUG] exec_list: IF condition evaluated to FALSE.
+[DEBUG] exec_list: LEFT operator.
+1 1 1
+LEFT, 1 1 0
+[DEBUG] exec_list: ASSIGN to 'canGoLeft'.
+Test: 1 1 2 1
+[DEBUG] eval_expr: TEST → 0.
+[DEBUG] Updated variable 'canGoLeft' = 1.
+[DEBUG] exec_list: RIGHT operator.
+RIGHT 1 1 1
+[DEBUG] exec_list: ASSIGN to 'canGoForward'.
+Test: 1 1 1 2
+[DEBUG] eval_expr: TEST → 0.
+[DEBUG] Updated variable 'canGoForward' = 1.
+[DEBUG] exec_list: RIGHT operator.
+RIGHT 1 1 2
+[DEBUG] exec_list: ASSIGN to 'canGoRight'.
+Test: 1 1 0 2
+[DEBUG] eval_expr: TEST → 0.
+[DEBUG] Updated variable 'canGoRight' = 1.
+[DEBUG] exec_list: LEFT operator.
+1 1 2
+LEFT, 1 1 1
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: var 'canGoLeft'.
+[DEBUG] get_var: scalar
+[DEBUG] exec_list: IF condition evaluated to TRUE.
+[DEBUG] exec_list: LEFT operator.
+1 1 1
+LEFT, 1 1 0
+[DEBUG] exec_list: FORWARD operator.
+[DEBUG] eval_expr: integer literal 1.
+FORWARD 1 -> true
+[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: var 'canGoForward'.
+[DEBUG] get_var: scalar
+[DEBUG] exec_list: IF condition evaluated to TRUE.
+[DEBUG] exec_list: FORWARD operator.
+[DEBUG] eval_expr: integer literal 1.
+FORWARD 1 -> true
+[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: var 'canGoRight'.
+[DEBUG] get_var: scalar
+[DEBUG] exec_list: IF condition evaluated to TRUE.
+[DEBUG] exec_list: RIGHT operator.
+RIGHT 3 1 1
+[DEBUG] exec_list: FORWARD operator.
+[DEBUG] eval_expr: integer literal 1.
+FORWARD 1 -> true
+[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.
+[DEBUG] exec_list: LEFT operator.
+3 2 1
+LEFT, 3 2 0
+[DEBUG] exec_list: LEFT operator.
+3 2 0
+LEFT, 3 2 5
+[DEBUG] exec_list: FORWARD operator.
+[DEBUG] eval_expr: integer literal 1.
+FORWARD 1 -> true
+[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.
+[DEBUG] eval_expr: boolean literal TRUE.
+[DEBUG] exec_list: WHILE condition evaluated to TRUE.
+[DEBUG] exec_list: executing WHILE body.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: LOOK → 0.
+[DEBUG] exec_list: IF condition evaluated to FALSE.
+[DEBUG] exec_list: LEFT operator.
+4 1 5
+LEFT, 4 1 4
+[DEBUG] exec_list: ASSIGN to 'canGoLeft'.
+Test: 4 1 4 0
+[DEBUG] eval_expr: TEST → 0.
+[DEBUG] Updated variable 'canGoLeft' = 1.
+[DEBUG] exec_list: RIGHT operator.
+RIGHT 4 1 5
+[DEBUG] exec_list: ASSIGN to 'canGoForward'.
+Test: 4 1 5 0
+[DEBUG] eval_expr: TEST → 1.
+[DEBUG] Updated variable 'canGoForward' = 0.
+[DEBUG] exec_list: RIGHT operator.
+RIGHT 4 1 0
+[DEBUG] exec_list: ASSIGN to 'canGoRight'.
+Test: 4 1 5 1
+[DEBUG] eval_expr: TEST → 1.
+[DEBUG] Updated variable 'canGoRight' = 0.
+[DEBUG] exec_list: LEFT operator.
+4 1 0
+LEFT, 4 1 5
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: var 'canGoLeft'.
+[DEBUG] get_var: scalar
+[DEBUG] exec_list: IF condition evaluated to TRUE.
+[DEBUG] exec_list: LEFT operator.
+4 1 5
+LEFT, 4 1 4
+[DEBUG] exec_list: FORWARD operator.
+[DEBUG] eval_expr: integer literal 1.
+FORWARD 1 -> true
+[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: var 'canGoForward'.
+[DEBUG] get_var: scalar
+[DEBUG] exec_list: IF condition evaluated to FALSE.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: var 'canGoRight'.
+[DEBUG] get_var: scalar
+[DEBUG] exec_list: IF condition evaluated to FALSE.
+[DEBUG] exec_list: LEFT operator.
+4 0 4
+LEFT, 4 0 3
+[DEBUG] exec_list: LEFT operator.
+4 0 3
+LEFT, 4 0 2
+[DEBUG] exec_list: FORWARD operator.
+[DEBUG] eval_expr: integer literal 1.
+FORWARD 1 -> true
+[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.
+[DEBUG] eval_expr: boolean literal TRUE.
+[DEBUG] exec_list: WHILE condition evaluated to TRUE.
+[DEBUG] exec_list: executing WHILE body.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: LOOK → 0.
+[DEBUG] exec_list: IF condition evaluated to FALSE.
+[DEBUG] exec_list: LEFT operator.
+3 1 2
+LEFT, 3 1 1
+[DEBUG] exec_list: ASSIGN to 'canGoLeft'.
+Test: 3 1 3 2
+[DEBUG] eval_expr: TEST → 0.
+[DEBUG] Updated variable 'canGoLeft' = 1.
+[DEBUG] exec_list: RIGHT operator.
+RIGHT 3 1 2
+[DEBUG] exec_list: ASSIGN to 'canGoForward'.
+Test: 3 1 2 2
+[DEBUG] eval_expr: TEST → 0.
+[DEBUG] Updated variable 'canGoForward' = 1.
+[DEBUG] exec_list: RIGHT operator.
+RIGHT 3 1 3
+[DEBUG] exec_list: ASSIGN to 'canGoRight'.
+Test: 3 1 2 1
+[DEBUG] eval_expr: TEST → 0.
+[DEBUG] Updated variable 'canGoRight' = 1.
+[DEBUG] exec_list: LEFT operator.
+3 1 3
+LEFT, 3 1 2
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: var 'canGoLeft'.
+[DEBUG] get_var: scalar
+[DEBUG] exec_list: IF condition evaluated to TRUE.
+[DEBUG] exec_list: LEFT operator.
+3 1 2
+LEFT, 3 1 1
+[DEBUG] exec_list: FORWARD operator.
+[DEBUG] eval_expr: integer literal 1.
+FORWARD 1 -> true
+[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: var 'canGoForward'.
+[DEBUG] get_var: scalar
+[DEBUG] exec_list: IF condition evaluated to TRUE.
+[DEBUG] exec_list: FORWARD operator.
+[DEBUG] eval_expr: integer literal 1.
+FORWARD 1 -> true
+[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: var 'canGoRight'.
+[DEBUG] get_var: scalar
+[DEBUG] exec_list: IF condition evaluated to TRUE.
+[DEBUG] exec_list: RIGHT operator.
+RIGHT 3 3 2
+[DEBUG] exec_list: FORWARD operator.
+[DEBUG] eval_expr: integer literal 1.
+FORWARD 1 -> true
+[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.
+[DEBUG] exec_list: LEFT operator.
+2 4 2
+LEFT, 2 4 1
+[DEBUG] exec_list: LEFT operator.
+2 4 1
+LEFT, 2 4 0
+[DEBUG] exec_list: FORWARD operator.
+[DEBUG] eval_expr: integer literal 1.
+FORWARD 1 -> true
+[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.
+[DEBUG] eval_expr: boolean literal TRUE.
+[DEBUG] exec_list: WHILE condition evaluated to TRUE.
+[DEBUG] exec_list: executing WHILE body.
+[DEBUG] exec_list: IF condition.
+[DEBUG] eval_expr: LOOK → 1.
+[DEBUG] exec_list: IF condition evaluated to TRUE.
+[DEBUG] exec_list: encountered 'break', breaking out of loop.
+[DEBUG] exec_list: returning is true, breaking.
+[DEBUG] exec_list: returning is true after WHILE body, breaking.
+[DEBUG] Finished execution of AST.
+[DEBUG] Final move: stepping into EXIT.
+Robot reached EXIT at (q=4, r=4), dir=0
+[DEBUG] Freeing maze resources.
+[DEBUG] Maze resources freed.
+

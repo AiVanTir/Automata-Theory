@@ -10,6 +10,20 @@ static AST *new_node(ASTKind kind) {
     return n;
 }
 
+AST *ast_cell_literal(int cell) {
+    AST *n = new_node(AST_CELL);
+    n->d.cell_lit.cell = cell;
+    return n;
+}
+
+AST *ast_decl(char **names, int count, AST *body) {
+    AST *n = new_node(AST_DECL);
+    n->d.decl.names = names;
+    n->d.decl.count = count;
+    n->next         = body;
+    return n;
+}
+
 AST *ast_int_literal(long long x) {
     AST *n = new_node(AST_INT);
     n->d.int_val = x;
@@ -37,10 +51,23 @@ AST *ast_undef() {
     return n;
 }
 
-AST *ast_var_ref(char *name, AST *idx) {
+AST *ast_var_ref(const char *name) {
     AST *n = new_node(AST_VAR_REF);
     n->d.var_ref.name = strdup(name);
+    n->d.var_ref.idx  = NULL;
+    return n;
+}
+
+AST *ast_arr_ref(const char *name, AST *idx) {
+    AST *n = new_node(AST_ARR_REF);
+    n->d.var_ref.name = strdup(name);
     n->d.var_ref.idx  = idx;
+    return n;
+}
+
+AST *ast_sumarr(const char *name) {
+    AST *n = new_node(AST_SUMARR);
+    n->d.sumarr.name = strdup(name);
     return n;
 }
 
@@ -56,12 +83,6 @@ AST *ast_unop(char op, AST *operand) {
     AST *n = new_node(AST_UNOP);
     n->d.unop.op      = op;
     n->d.unop.operand = operand;
-    return n;
-}
-
-AST *ast_sumarr(char *name) {
-    AST *n = new_node(AST_SUMARR);
-    n->d.sumarr_name = strdup(name);
     return n;
 }
 
@@ -249,4 +270,3 @@ void ast_print(AST *a) {
     printf("\n");
     ast_print(a->next);
 }
-
