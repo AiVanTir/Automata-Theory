@@ -2,7 +2,6 @@ CC      = gcc
 LEX     = flex
 YACC    = bison
 CFLAGS  = -O2 -Wall -I.    # -I. позволяет подключать заголовки из текущей директории
-LDFLAGS = -lfl                       # для совместимости с Flex (yywrap и т.п.)
 
 # Список объектных файлов, которые будут в итоговом бинарнике
 OBJS = lex.yy.o \
@@ -17,7 +16,7 @@ all: robot_interpreter
 
 # Правило линковки итогового исполняемого файла
 robot_interpreter: $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $(OBJS)
 
 # Bison генерирует parser: robot_lang.tab.c и robot_lang.tab.h
 # Флаг -d говорит: «сгенерируй *.tab.h», -v — дополнительный отчёт.

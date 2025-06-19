@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include "context.h"
+#include "interp.h"
 #include "ast.h"
 #include "maze.h"
 

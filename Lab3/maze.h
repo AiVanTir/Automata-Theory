@@ -2,7 +2,7 @@
 #define MAZE_H
 
 #include <stdbool.h>
-#include "context.h"
+#include "interp.h"
 
 typedef enum {
     CELL_EMPTY,
@@ -28,5 +28,5 @@ bool  maze_load_box(Context *ctx, int weight);
 bool  maze_drop_box(Context *ctx, int weight);
 bool  is_at_exit(const Context *ctx);
 
-#endif
+#endif /* MAZE_H */
 
