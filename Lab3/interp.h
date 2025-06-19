@@ -56,4 +56,6 @@ typedef struct Context {
     Value   ret_value;     /* значение, возвращённое функцией (если returning==true) */
 } Context;
 
+void interp_execute(AST *ast, const char *mz);
+
 #endif
