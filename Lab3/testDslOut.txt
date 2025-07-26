@@ -34,21 +34,38 @@
 [DEBUG] Loading maze from 'maze.txt'.
 [DEBUG] Maze loaded successfully. Start at (q=0, r=0), dir=1.
 [DEBUG] Starting execution of AST.
+[DBG AST NODE] kind=12
+[DBG AST NODE] kind=12
+[DBG AST NODE] kind=12
+[DBG AST NODE] kind=12
+[DBG AST NODE] kind=12
+[DBG AST NODE] kind=12
+[DBG AST NODE] kind=12
+[DBG AST NODE] kind=12
+[DBG AST NODE] kind=12
+[DBG AST NODE] kind=13
+[DBG AST NODE] kind=12
+[DBG AST NODE] kind=12
+[DBG AST NODE] kind=12
+[DBG AST NODE] kind=22
+[DBG AST NODE] kind=24
+[DBG AST NODE] kind=23
+[DBG AST NODE] kind=25
+[DBG AST NODE] kind=26
+[DBG AST NODE] kind=27
 [DEBUG] exec_list: ASSIGN to 'a'.
 [DEBUG] eval_expr: integer literal 10.
 [DEBUG] Updated variable 'a' = 10.
 [DEBUG] exec_list: ASSIGN to 'b'.
 [DEBUG] eval_expr: integer literal 5.
-[DEBUG] eval_expr: integer literal 0.
-[DEBUG] Set variable 'b'[0] = 5.
+[DEBUG] Updated variable 'b' = 5.
 [DEBUG] exec_list: ASSIGN to 'b'.
 [DEBUG] eval_expr: integer literal 15.
-[DEBUG] eval_expr: integer literal 1.
-[DEBUG] Set variable 'b'[1] = 15.
+[DEBUG] Updated variable 'b' = 15.
 [DEBUG] exec_list: ASSIGN to 'sumArr'.
 [DEBUG] eval_expr: sumarr '#b'.
-[DEBUG] Summed array variable 'b' = 20.
-[DEBUG] Updated variable 'sumArr' = 20.
+[DEBUG] Summed array variable 'b' = 15.
+[DEBUG] Updated variable 'sumArr' = 15.
 [DEBUG] exec_list: ASSIGN to 'hexVal'.
 [DEBUG] eval_expr: integer literal 26.
 [DEBUG] Updated variable 'hexVal' = 26.
@@ -71,25 +88,21 @@
 [DEBUG] eval_expr: BINOP '>'.
 [DEBUG] eval_expr: var 'a'.
 [DEBUG] get_var: scalar
-[DEBUG] eval_expr: arr 'b'[0x4a8c250].
+[DEBUG] eval_expr: arr 'b' index.
 [DEBUG] eval_expr: integer literal 0.
-[DEBUG] get_var: arr 'b'[0] = 5.
-[DEBUG] Int binop: 10 > 5 = TRUE
-[DEBUG] exec_list: IF condition evaluated to TRUE.
-[DEBUG] exec_list: ASSIGN to 'a'.
-[DEBUG] eval_expr: BINOP '-'.
+[DEBUG] get_var: arr 'b'[0] = 15.
+[DEBUG] Int binop: 10 > 15 = FALSE
+[DEBUG] eval_expr: BINOP '='.
 [DEBUG] eval_expr: var 'a'.
 [DEBUG] get_var: scalar
-[DEBUG] eval_expr: arr 'b'[0x4a8c5e0].
+[DEBUG] eval_expr: arr 'b' index.
 [DEBUG] eval_expr: integer literal 0.
-[DEBUG] get_var: arr 'b'[0] = 5.
-[DEBUG] Int binop: 10 - 5 = 5
-[DEBUG] Updated variable 'a' = 5.
+[DEBUG] get_var: arr 'b'[0] = 15.
+[DEBUG] Int binop: 10 == 15 = FALSE
 [DEBUG] exec_list: ASSIGN to 'b'.
 [DEBUG] eval_expr: calling function 'inc'.
 [DEBUG] eval_expr: function 'inc' not found, returning UNDEF.
-[DEBUG] eval_expr: integer literal 2.
-[DEBUG] Set variable 'b'[2] = UNDEF.
+[DEBUG] Updated variable 'b' = UNDEF.
 [DEBUG] exec_list: ASSIGN to 'dist'.
 [DEBUG] eval_expr: LOOK → 0.
 [DEBUG] Updated variable 'dist' = 0.
@@ -101,13 +114,12 @@ Test: 0 0 0 1
 [DEBUG] eval_expr: integer literal 2.
 FORWARD 2 -> true
 [DEBUG] exec_list: LEFT operator.
-0 2 1
-LEFT, 0 2 0
+LEFT → now at (0,2) dir=0
 [DEBUG] exec_list: BACKWARD operator.
 [DEBUG] eval_expr: integer literal 1.
 BACKWARD 1 -> false
 [DEBUG] exec_list: RIGHT operator.
-RIGHT 0 2 1
+RIGHT → now at (0,2) dir=1
 [DEBUG] exec_list: LOAD operator.
 [DEBUG] eval_expr: integer literal 5.
 LOAD 5 -> false

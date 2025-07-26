@@ -32,7 +32,7 @@ while TRUE do
         continue
     done
 
-    left
+    LEFT
     left
     forward 1
     continue

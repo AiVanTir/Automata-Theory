@@ -7,6 +7,13 @@
 struct Maze;
 typedef struct Maze Maze;
 
+typedef enum {
+    EX_NORMAL,     /* обычное выполнение */
+    EX_BREAK,      /* встретили break */
+    EX_CONTINUE,   /* встретили continue */
+    EX_RETURN      /* встретили return */
+} ExecResult;
+
 /* тип-обёртка Value для наших значений */
 typedef enum {
     V_INT,    /* целое число */
@@ -56,6 +63,10 @@ typedef struct Context {
     Value   ret_value;     /* значение, возвращённое функцией (если returning==true) */
 } Context;
 
-void interp_execute(AST *ast, const char *mz);
+void interp_execute(AST *prog, const char *maze_file);
+
+ExecResult exec_list(Context *ctx, AST *list);
+ExecResult exec_stmt(Context *ctx, AST *node);
+Value      eval_expr(Context *ctx, AST *e);
 
 #endif

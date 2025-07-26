@@ -12,9 +12,7 @@
 static const int hex_dq[6] = { +1,  0, -1, -1,  0, +1 };
 static const int hex_dr[6] = {  0, +1, +1,  0, -1, -1 };
 
-static Value eval_expr(Context *ctx, AST *e);
-
-static void exec_list(Context *ctx, AST *p);
+ExecResult exec_list(Context *ctx, AST *list);
 
 Value val_int(long long x) {
     Value v;
@@ -86,11 +84,8 @@ void set_var(Context *ctx, const char *name, AST *idx, Value val) {
             printf("[DEBUG] Attempt to index variable '%s' with non-integer.\n", name);
             return;
         }
-        int i = (int) iv.i;
-        if (i < 0) {
-            printf("[DEBUG] Attempt to index variable '%s' with negative index %d.\n", name, i);
-            return;
-        }
+        int raw = (int) iv.i;
+        int i = raw < 0 ? (long)v->cap + raw : raw;
         ensure_capacity(v, i + 1);
         v->arr[i] = val;
         if (val.kind == V_INT) {
@@ -105,34 +100,37 @@ void set_var(Context *ctx, const char *name, AST *idx, Value val) {
             printf("[DEBUG] Set variable '%s'[%d] = UNDEF.\n", name, i);
         }
     } else {
-        if (v->cap == 0) {
-            v->cap = 1;
-            v->arr = (Value *) malloc(sizeof(Value) * 1);
-            v->arr[0] = val;
-            if (val.kind == V_INT) {
-                printf("[DEBUG] Initialized variable '%s' = %lld.\n", name, (long long)val.i);
-            } else if (val.kind == V_BOOL) {
-                printf("[DEBUG] Initialized variable '%s' = %s.\n", name, val.b ? "TRUE" : "FALSE");
-            } else if (val.kind == V_INF) {
-                printf("[DEBUG] Initialized variable '%s' = INF.\n", name);
-            } else if (val.kind == V_NAN) {
-                printf("[DEBUG] Initialized variable '%s' = NAN.\n", name);
-            } else {
-                printf("[DEBUG] Initialized variable '%s' = UNDEF.\n", name);
-            }
-        } else {
-            v->arr[0] = val;
-            if (val.kind == V_INT) {
-                printf("[DEBUG] Updated variable '%s' = %lld.\n", name, (long long)val.i);
-            } else if (val.kind == V_BOOL) {
-                printf("[DEBUG] Updated variable '%s' = %s.\n", name, val.b ? "TRUE" : "FALSE");
-            } else if (val.kind == V_INF) {
-                printf("[DEBUG] Updated variable '%s' = INF.\n", name);
-            } else if (val.kind == V_NAN) {
-                printf("[DEBUG] Updated variable '%s' = NAN.\n", name);
-            } else {
-                printf("[DEBUG] Updated variable '%s' = UNDEF.\n", name);
-            }
+        bool first = (v->cap == 0);
+        ensure_capacity(v, 1);
+        v->arr[0] = val;
+
+        if (val.kind == V_INT) {
+            if (first)
+                printf("[DEBUG] Initialized variable '%s' = %lld.\n",
+                       name, (long long)val.i);
+            else
+                printf("[DEBUG] Updated variable '%s' = %lld.\n",
+                       name, (long long)val.i);
+        }
+        else if (val.kind == V_BOOL) {
+            if (first)
+                printf("[DEBUG] Initialized variable '%s' = %s.\n",
+                       name, val.b ? "TRUE" : "FALSE");
+            else
+                printf("[DEBUG] Updated variable '%s' = %s.\n",
+                       name, val.b ? "TRUE" : "FALSE");
+        }
+        else if (val.kind == V_INF) {
+            printf("[DEBUG] %s variable '%s' = INF.\n",
+                   first ? "Initialized" : "Updated", name);
+        }
+        else if (val.kind == V_NAN) {
+            printf("[DEBUG] %s variable '%s' = NAN.\n",
+                   first ? "Initialized" : "Updated", name);
+        }
+        else {
+            printf("[DEBUG] %s variable '%s' = UNDEF.\n",
+                   first ? "Initialized" : "Updated", name);
         }
     }
 }
@@ -153,11 +151,8 @@ Value get_var(Context *ctx, const char *name, AST *idx) {
         fprintf(stderr, "Error: non-integer index for '%s'\n", name);
         return val_undef();
     }
-    long i = iv.i;
-    if (i < 0 || i >= v->cap) {
-        fprintf(stderr, "Error: index %ld out of bounds for '%s'\n", i, name);
-        return val_undef();
-    }
+    int raw = iv.i;
+    long i = raw < 0 ? (long)v->cap + raw : raw;
     Value vv = v->arr[i];
     if (vv.kind == V_INT) {
         printf("[DEBUG] get_var: arr '%s'[%ld] = %lld.\n",
@@ -247,7 +242,7 @@ static Value make_binop(Value L, Value R, char op) {
             printf("[DEBUG] INF vs INF binop with op '%c'\n", op);
             switch (op) {
                 case '+': case '-': case '*': return val_inf();
-                case '/': return val_nan();
+                case '/': return val_nan();  /* INF/INF → NAN */
                 case '<': return val_bool(false);
                 case '>': return val_bool(false);
                 case '=': return val_bool(true);
@@ -339,7 +334,7 @@ static Value make_binop(Value L, Value R, char op) {
     }
 }
 
-static Value eval_expr(Context *ctx, AST *e) {
+Value eval_expr(Context *ctx, AST *e) {
     if (!e) {
         printf("[DEBUG] eval_expr: encountered NULL AST node, returning UNDEF.\n");
         return val_undef();
@@ -387,14 +382,13 @@ static Value eval_expr(Context *ctx, AST *e) {
         }
 
         case AST_ARR_REF: {
-            printf("[DEBUG] eval_expr: arr '%s'[%p].\n",
-                   e->d.var_ref.name, (void*)e->d.var_ref.idx);
-            return get_var(ctx, e->d.var_ref.name, e->d.var_ref.idx);
+            printf("[DEBUG] eval_expr: arr '%s' index.\n", e->d.arr_ref.name);
+            return get_var(ctx, e->d.arr_ref.name, e->d.arr_ref.idx);
         }
 
         case AST_SUMARR: {
-            printf("[DEBUG] eval_expr: sumarr '#%s'.\n", e->d.sumarr_name);
-            return eval_sumarr(ctx, e->d.sumarr_name);
+            printf("[DEBUG] eval_expr: sumarr '#%s'.\n", e->d.sumarr.name);
+            return eval_sumarr(ctx, e->d.sumarr.name);
         }
 
         case AST_BINOP: {
@@ -486,83 +480,83 @@ static Value eval_expr(Context *ctx, AST *e) {
     }
 }
 
-static void exec_list(Context *ctx, AST *p) {
-    while (p)
-    {
+ExecResult exec_list(Context *ctx, AST *p) {
+    while (p) {
         if (ctx->returning) {
-            printf("[DEBUG] exec_list: returning is true, breaking.\n");
-            return;
+            printf("[DEBUG] exec_list: returning is true, bubbling up EX_RETURN.\n");
+            return EX_RETURN;
         }
 
         switch (p->kind) {
+
             case AST_CONTINUE:
-                printf("[DEBUG] exec_list: encountered 'continue', skipping to next stmt_list.\n");
-                return;
+                printf("[DEBUG] exec_list: encountered 'continue', returning EX_CONTINUE.\n");
+                return EX_CONTINUE;
+
             case AST_BREAK:
-                printf("[DEBUG] exec_list: encountered 'break', breaking out of loop.\n");
-                ctx->returning = true;
-                return;
+                printf("[DEBUG] exec_list: encountered 'break', returning EX_BREAK.\n");
+                return EX_BREAK;
+
             case AST_VAR_REF:
-                if (p->d.var_ref.idx == NULL && strcmp(p->d.var_ref.name, "continue") == 0) {
-                    printf("[DEBUG] exec_list: encountered 'continue', returning from exec_list.\n");
-                    return;
+                 if (strcmp(p->d.var_ref.name, "continue") == 0) {
+                    printf("[DEBUG] exec_list: bare 'continue', returning EX_CONTINUE.\n");
+                    return EX_CONTINUE;
                 }
                 break;
 
             case AST_ASSIGN: {
                 printf("[DEBUG] exec_list: ASSIGN to '%s'.\n", p->d.assign.name);
                 Value v = eval_expr(ctx, p->d.assign.expr);
-                set_var(ctx, p->d.assign.name, p->d.assign.idx, v);
+                set_var(ctx, p->d.assign.name, NULL, v);
                 break;
             }
 
             case AST_IF: {
-                printf("[DEBUG] exec_list: IF condition.\n");
-                Value C = eval_expr(ctx, p->d.if_stmt.cond);
-                bool cond = false;
-                if (C.kind == V_BOOL) cond = C.b;
-                else if (C.kind == V_INT) cond = (C.i != 0);
-                printf("[DEBUG] exec_list: IF condition evaluated to %s.\n", cond ? "TRUE" : "FALSE");
-                if (cond) {
-                    exec_list(ctx, p->d.if_stmt.then_branch);
-                } else if (p->d.if_stmt.elif_cond) {
-                    printf("[DEBUG] exec_list: evaluating ELIF condition.\n");
-                    Value C2 = eval_expr(ctx, p->d.if_stmt.elif_cond);
-                    bool cond2 = false;
-                    if (C2.kind == V_BOOL) cond2 = C2.b;
-                    else if (C2.kind == V_INT) cond2 = (C2.i != 0);
-                    printf("[DEBUG] exec_list: ELIF condition evaluated to %s.\n", cond2 ? "TRUE" : "FALSE");
-                    if (cond2) {
-                        exec_list(ctx, p->d.if_stmt.elif_then);
-                    } else if (p->d.if_stmt.else_branch) {
-                        exec_list(ctx, p->d.if_stmt.else_branch);
-                    }
+            printf("[DEBUG] exec_list: IF condition.\n");
+            Value C = eval_expr(ctx, p->d.if_stmt.cond);
+            bool cond = (C.kind == V_BOOL ? C.b : (C.kind == V_INT ? C.i != 0 : false));
+
+            if (cond) {
+                ExecResult r = exec_list(ctx, p->d.if_stmt.then_branch);
+                if (r != EX_NORMAL) return r;
+
+            } else if (p->d.if_stmt.elif_cond) {
+                Value C2 = eval_expr(ctx, p->d.if_stmt.elif_cond);
+                bool cond2 = (C2.kind == V_BOOL ? C2.b : (C2.kind == V_INT ? C2.i != 0 : false));
+                if (cond2) {
+                    ExecResult r = exec_list(ctx, p->d.if_stmt.elif_then);
+                    if (r != EX_NORMAL) return r;
                 } else if (p->d.if_stmt.else_branch) {
-                    printf("[DEBUG] exec_list: executing ELSE branch.\n");
-                    exec_list(ctx, p->d.if_stmt.else_branch);
+                    ExecResult r = exec_list(ctx, p->d.if_stmt.else_branch);
+                    if (r != EX_NORMAL) return r;
                 }
-                break;
+
+            } else if (p->d.if_stmt.else_branch) {
+                ExecResult r = exec_list(ctx, p->d.if_stmt.else_branch);
+                if (r != EX_NORMAL) return r;
             }
+            break;
+        }
 
             case AST_WHILE: {
                 printf("[DEBUG] exec_list: entering WHILE loop.\n");
                 while (1) {
                     if (ctx->returning) {
-                        printf("[DEBUG] exec_list: returning is true inside WHILE, breaking.\n");
-                        return;
+                        printf("[DEBUG] exec_list: return‑flag inside WHILE, bubbling up EX_RETURN.\n");
+                        return EX_RETURN;
                     }
                     Value C = eval_expr(ctx, p->d.while_stmt.cond);
-                    bool cond = false;
-                    if (C.kind == V_BOOL) cond = C.b;
-                    else if (C.kind == V_INT) cond = (C.i != 0);
-                    printf("[DEBUG] exec_list: WHILE condition evaluated to %s.\n", cond ? "TRUE" : "FALSE");
+                    bool cond = (C.kind == V_BOOL ? C.b : (C.kind == V_INT ? C.i != 0 : false));
+                    printf("[DEBUG] exec_list: WHILE condition → %s.\n", cond ? "TRUE" : "FALSE");
                     if (!cond) break;
-
                     printf("[DEBUG] exec_list: executing WHILE body.\n");
-                    exec_list(ctx, p->d.while_stmt.body);
-                    if (ctx->returning) {
-                        printf("[DEBUG] exec_list: returning is true after WHILE body, breaking.\n");
-                        return;
+                    ExecResult r = exec_list(ctx, p->d.while_stmt.body);
+                    if (r == EX_BREAK) {
+                        break;
+                    } else if (r == EX_CONTINUE) {
+                        continue;
+                    } else if (r == EX_RETURN) {
+                        return EX_RETURN;
                     }
                 }
                 printf("[DEBUG] exec_list: exiting WHILE loop.\n");
@@ -571,16 +565,17 @@ static void exec_list(Context *ctx, AST *p) {
 
             case AST_RETURN: {
                 printf("[DEBUG] exec_list: RETURN statement.\n");
-                Value v = eval_expr(ctx, p->d.ret_expr);
-                ctx->ret_value = v;
+                Value rv = eval_expr(ctx, p->d.ret_expr);
+                ctx->ret_value = rv;
                 ctx->returning = true;
-                printf("[DEBUG] exec_list: set returning = true.\n");
-                return;
+                printf("[DEBUG] exec_list: set ctx->returning = true, bubbling up EX_RETURN.\n");
+                return EX_RETURN;
             }
 
             case AST_FUNC_DECL: {
-                printf("[DEBUG] exec_list: function declaration '%s'.\n", p->d.func_decl.fname);
-                Func *f = (Func *) malloc(sizeof(Func));
+                printf("[DEBUG] exec_list: function declaration '%s'.\n",
+                       p->d.func_decl.fname);
+                Func *f = malloc(sizeof(Func));
                 f->name  = strdup(p->d.func_decl.fname);
                 f->param = strdup(p->d.func_decl.param);
                 f->body  = p->d.func_decl.body;
@@ -589,10 +584,17 @@ static void exec_list(Context *ctx, AST *p) {
                 break;
             }
 
+            case AST_FUNC_CALL: {
+                printf("[DEBUG] exec_list: calling function '%s'.\n",
+                       p->d.func_call.fname);
+                (void)eval_expr(ctx, p);
+                break;
+            }
+
             case AST_TEST: {
                 printf("[DEBUG] exec_list: TEST operator.\n");
                 bool isWall = test_obstacle(ctx);
-                printf("TEST -> %d\n", isWall ? 1 : 0);
+                printf("TEST -> %d\n", isWall);
                 break;
             }
 
@@ -610,8 +612,8 @@ static void exec_list(Context *ctx, AST *p) {
                     printf("FORWARD: argument is not INT\n");
                     break;
                 }
-                bool ok = maze_move(ctx, (int) v.i);
-                printf("FORWARD %lld -> %s\n", (long long) v.i, ok ? "true" : "false");
+                bool ok = maze_move(ctx, (int)v.i);
+                printf("FORWARD %lld -> %s\n", (long long)v.i, ok ? "true" : "false");
                 break;
             }
 
@@ -622,22 +624,22 @@ static void exec_list(Context *ctx, AST *p) {
                     printf("BACKWARD: argument is not INT\n");
                     break;
                 }
-                bool ok = maze_move(ctx, -(int) v.i);
-                printf("BACKWARD %lld -> %s\n", (long long) v.i, ok ? "true" : "false");
+                bool ok = maze_move(ctx, -(int)v.i);
+                printf("BACKWARD %lld -> %s\n", (long long)v.i, ok ? "true" : "false");
                 break;
             }
 
             case AST_LEFT: {
-                printf("[DEBUG] exec_list: LEFT operator.\n%d %d %d\n", ctx->q, ctx->r, ctx->dir);
+                printf("[DEBUG] exec_list: LEFT operator.\n");
                 maze_turn(ctx, -1);
-                printf("LEFT, %d %d %d\n", ctx->q, ctx->r, ctx->dir);
+                printf("LEFT → now at (%d,%d) dir=%d\n", ctx->q, ctx->r, ctx->dir);
                 break;
             }
 
             case AST_RIGHT: {
                 printf("[DEBUG] exec_list: RIGHT operator.\n");
                 maze_turn(ctx, +1);
-                printf("RIGHT %d %d %d\n", ctx->q, ctx->r, ctx->dir);
+                printf("RIGHT → now at (%d,%d) dir=%d\n", ctx->q, ctx->r, ctx->dir);
                 break;
             }
 
@@ -648,8 +650,8 @@ static void exec_list(Context *ctx, AST *p) {
                     printf("LOAD: argument is not INT\n");
                     break;
                 }
-                bool ok = maze_load_box(ctx, (int) v.i);
-                printf("LOAD %lld -> %s\n", (long long) v.i, ok ? "true" : "false");
+                bool ok = maze_load_box(ctx, (int)v.i);
+                printf("LOAD %lld -> %s\n", (long long)v.i, ok ? "true" : "false");
                 break;
             }
 
@@ -660,18 +662,21 @@ static void exec_list(Context *ctx, AST *p) {
                     printf("DROP: argument is not INT\n");
                     break;
                 }
-                bool ok = maze_drop_box(ctx, (int) v.i);
-                printf("DROP %lld -> %s\n", (long long) v.i, ok ? "true" : "false");
+                bool ok = maze_drop_box(ctx, (int)v.i);
+                printf("DROP %lld -> %s\n", (long long)v.i, ok ? "true" : "false");
                 break;
             }
 
             default:
-                printf("[DEBUG] exec_list: unknown AST kind %d, skipping.\n", p->kind);
+                printf("[DEBUG] exec_list: unknown AST kind %d, skipping.\n",
+                       p->kind);
                 break;
         }
 
         p = p->next;
     }
+
+    return EX_NORMAL;
 }
 
 void interp_execute(AST *prog, const char *maze_file) {
@@ -686,7 +691,7 @@ void interp_execute(AST *prog, const char *maze_file) {
         for (int i = 0; i < prog->d.decl.count; i++) {
             set_var(&ctx, prog->d.decl.names[i], NULL, val_undef());
         }
-        prog = prog->next;
+        prog = prog->d.decl.init;
     }
     printf("[DEBUG] Loading maze from '%s'.\n", maze_file);
     ctx.mz = maze_load(maze_file, &ctx);
@@ -697,6 +702,8 @@ void interp_execute(AST *prog, const char *maze_file) {
     printf("[DEBUG] Maze loaded successfully. Start at (q=%d, r=%d), dir=%d.\n", ctx.q, ctx.r, ctx.dir);
 
     printf("[DEBUG] Starting execution of AST.\n");
+    for (AST *p = prog; p; p = p->next)
+      printf("[DBG AST NODE] kind=%d\n", p->kind);
     exec_list(&ctx, prog);
     printf("[DEBUG] Finished execution of AST.\n");
     

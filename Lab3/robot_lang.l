@@ -1,5 +1,5 @@
 
-%option noyywrap yylineno
+%option noyywrap yylineno case-insensitive
 %{
 #include <stdio.h>
 #include <stdlib.h>
